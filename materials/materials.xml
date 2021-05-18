@@ -1,0 +1,102 @@
+<pumas>
+  <element name="H"  Z="1"  A="1.008700"  I="19.2"  />
+  <element name="C"  Z="6"  A="12.010800" I="78.0"  />
+  <element name="N"  Z="7"  A="14.007200" I="82.0"  />
+  <element name="O"  Z="8"  A="15.999300" I="95.0"  />
+  <element name="Na" Z="11" A="22.989800" I="149.0" />
+  <element name="Mg" Z="12" A="24.305600" I="156.0" />
+  <element name="Al" Z="13" A="26.981500" I="166.0" />
+  <element name="Si" Z="14" A="28.085500" I="173.0" />
+  <element name="Ar" Z="18" A="39.948100" I="188.0" />
+  <element name="K"  Z="19" A="39.098300" I="190.0" />
+  <element name="Ca" Z="20" A="40.078400" I="191.0" />
+  <element name="Ti" Z="22" A="47.867100" I="233.0" />
+  <element name="Fe" Z="26" A="55.845200" I="286.0" />
+
+  <material name="Air" file="air.txt" density="0.001205" I="85.7">
+    <component name="N"  fraction="0.755267" />
+    <component name="O"  fraction="0.231781" />
+    <component name="Ar" fraction="0.012827" />
+    <component name="C"  fraction="0.000124" />
+  </material>
+
+  <material name="AluminumOxideSapphire" file="aluminum_oxide_sapphire.txt" density="3.97" I="145.2">
+    <component name="Al" fraction="0.529251" />
+    <component name="O"  fraction="0.470749" />
+  </material>
+
+  <material name="CalciumOxide" file="calcium_oxide.txt" density="3.3" I="176.1">
+    <component name="Ca" fraction="0.714701" />
+    <component name="O"  fraction="0.285299" />
+  </material>
+
+  <material name="FerricOxide" file="ferric_oxide.txt" density="5.2" I="227.3">
+    <component name="Fe" fraction="0.699433" />
+    <component name="O"  fraction="0.300567" />
+  </material>
+
+  <material name="FerrousOxide" file="ferrous_oxide.txt" density="5.7" I="248.6">
+    <component name="Fe" fraction="0.777311" />
+    <component name="O"  fraction="0.222689" />
+  </material>
+
+  <material name="MagnesiumOxide" file="magnesium_oxide.txt" density="3.58" I="143.8">
+    <component name="Mg" fraction="0.603036" />
+    <component name="O"  fraction="0.396964" />
+  </material>
+
+  <material name="PotassiumOxide" file="potassium_oxide.txt" density="2.32" I="189.9">
+    <component name="K" fraction="0.830148" />
+    <component name="O" fraction="0.169852" />
+  </material>
+
+  <material name="SiliconDioxide" file="silicon_dioxide.txt" density="2.2" I="139.2">
+    <component name="O"  fraction="0.532565" />
+    <component name="Si" fraction="0.467435" />
+  </material>
+
+  <material name="SodiumMonoxide" file="sodium_monoxide.txt" density="2.27" I="148.8">
+    <component name="Na" fraction="0.741857" />
+    <component name="O"  fraction="0.258143" />
+  </material>
+
+  <material name="TitaniumDioxide" file="titanium_dioxide.txt" density="4.26" I="179.5">
+    <component name="Ti" fraction="0.599408" />
+    <component name="O"  fraction="0.400592" />
+  </material>
+
+  <material name="Water" file="water.txt" density="1" I="79.7">
+    <component name="O" fraction="0.888106" />
+    <component name="H" fraction="0.111894" />
+  </material>
+
+  <composite name="SgmBasalt">
+    <component name="SiliconDioxide"        fraction="0.516" />
+    <component name="FerricOxide"           fraction="0.141" />
+    <component name="AluminumOxideSapphire" fraction="0.139" />
+    <component name="CalciumOxide"          fraction="0.067" />
+    <component name="MagnesiumOxide"        fraction="0.054" />
+    <component name="Water"                 fraction="0.034" />
+    <component name="SodiumMonoxide"        fraction="0.028" />
+    <component name="TitaniumDioxide"       fraction="0.012" />
+    <component name="PotassiumOxide"        fraction="0.01" />
+  </composite>
+
+  <composite name="SgmTunnel">
+    <component name="Air" fraction="1" />
+  </composite>
+
+  <composite name="SgmStope">
+    <component name="Air" fraction="1" />
+  </composite>
+
+  <composite name="SgmWarrak">
+    <component name="SiliconDioxide"        fraction="0.662" />
+    <component name="AluminumOxideSapphire" fraction="0.161" />
+    <component name="Water"                 fraction="0.049" />
+    <component name="PotassiumOxide"        fraction="0.048" />
+    <component name="FerricOxide"           fraction="0.045" />
+    <component name="FerrousOxide"          fraction="0.013" />
+    <component name="MagnesiumOxide"        fraction="0.022" />
+  </composite>
+</pumas>
