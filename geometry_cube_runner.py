@@ -39,6 +39,12 @@ HDF5_file = "double_N{0:g}_El{1:02g}.hdf5"
 # Set logE spacing
 logE_spc = 0.1
 
+# Set which datasets should be exported to txt
+dsets_export = [
+    'position_xf', 'position_yf', 'position_zf',
+    'energy_i', 'energy_f']
+N_dsets = len(dsets_export)+7
+
 
 # %% FUNCTION DEFINITIONS
 # Function that reads in an HDF5-file created with 'double_geometry_cube.c'
@@ -51,12 +57,12 @@ def read_cube_HDF5(N, az_rng, elevation, logE_rng, *args):
     Parameters
     ----------
     N : int
-        The number of muons that was simulated per simulation.
+        The number of muons that was simulated in the requested simulation.
     az_rng : int, 2-tuple of int or None
         All azimuth angles that must be read in from the file.
         If *None*, all azimuth angles available are read in.
     elevation : int
-        The elevation angle that was simulated per simulation.
+        The elevation angle that was simulated in the requested simulation.
     logE_rng : 2-tuple of float or None
         The range of energies that must be read in from the file.
         If *None*, all energies in the range `[-3, 4]` are read in.
@@ -95,7 +101,8 @@ def read_cube_HDF5(N, az_rng, elevation, logE_rng, *args):
 
     # Convert provided azimuth and logE to lists
     azimuth = list(azimuth)
-    logE = np.around(np.arange(logE_rng[0], logE_rng[1]+logE_spc, logE_spc), 1)
+    logE = np.around(np.linspace(logE_rng[0], logE_rng[1],
+                                 int((logE_rng[1]-logE_rng[0])/logE_spc+1)), 1)
     logE = list(zip(logE[:-1], logE[1:]))
 
     # Create empty dict
@@ -192,7 +199,8 @@ def run_double_cube(N=10000, az_rng=(0, 360), el_rng=(40, 90),
 
     # Determine Az+logE
     az = np.arange(*az_rng)
-    logE = np.around(np.arange(logE_rng[0], logE_rng[1]+logE_spc, logE_spc), 1)
+    logE = np.around(np.linspace(logE_rng[0], logE_rng[1],
+                                 int((logE_rng[1]-logE_rng[0])/logE_spc+1)), 1)
     logE = list(zip(logE[:-1], logE[1:]))
     _, Az = np.meshgrid(np.zeros([len(logE)]), az)
     logE = list(chain(*repeat(logE, len(az))))
@@ -253,7 +261,27 @@ def run_double_cube(N=10000, az_rng=(0, 360), el_rng=(40, 90),
     ccube.destroy_structs()
 
 
+# This function creates a figure showing the end positions of all muons
 def make_figure(N, az_rng, elevation, logE_rng):
+    """
+    Creates a figure showing the final positions of all muons simulated with
+    the given arguments.
+
+    Parameters
+    ----------
+    N : int
+        The number of muons that was simulated in the requested simulation.
+    az_rng : int, 2-tuple of int or None
+        All azimuth angles that must be read in from the file.
+        If *None*, all azimuth angles available are read in.
+    elevation : int
+        The elevation angle that was simulated in the requested simulation.
+    logE_rng : 2-tuple of float or None
+        The range of energies that must be read in from the file.
+        If *None*, all energies in the range `[-3, 4]` are read in.
+
+    """
+
     # Check values of azimuth and logE_rng
     if isinstance(az_rng, int):
         azimuth = [az_rng]
@@ -311,10 +339,101 @@ def make_figure(N, az_rng, elevation, logE_rng):
     ax.legend(loc='best')
 
 
+# This function reads in data and exports it to txt
+def export_to_txt(filename, N, az_rng, el_rng, logE_rng):
+    """
+    Exports the data associated with the given arguments in a text file
+    `filename`.
+
+    Parameters
+    ----------
+    filename : str
+        The path of the file the data must be stored in.
+    N : int
+        The number of muons that was simulated in the requested simulation.
+    az_rng : int, 2-tuple of int or None
+        All azimuth angles that must be read in from the file.
+        If *None*, all azimuth angles available are read in.
+    el_rng : int, 2-tuple of int
+        The range of elevation angles that must be read in from the files.
+    logE_rng : 2-tuple of float or None
+        The range of energies that must be read in from the file.
+        If *None*, all energies in the range `[-3, 4]` are read in.
+
+    """
+
+    # Obtain the absolute path to the provided filename
+    filename = path.abspath(filename)
+
+    # Set required elevations
+    if isinstance(el_rng, int):
+        el_all = [el_rng]
+    else:
+        el_all = np.arange(*el_rng)
+
+    # Create data_dct
+    data_dct = {}
+
+    # Create empty variable for detector position
+    det_pos = []
+
+    # Obtain data for every elevation requested
+    for elevation in el_all:
+        # Read in this elevation
+        data_dct[elevation] = read_cube_HDF5(N, az_rng, elevation, logE_rng,
+                                             *dsets_export)
+
+        # Save detector position if not done before
+        if not det_pos:
+            det_pos = data_dct[elevation]['attrs']['detector_pos']
+
+        # Remove all attributes from this dict
+        data_dct[elevation].pop('attrs')
+
+    # Determine lengths
+    N_el = len(data_dct)
+    N_azE = len(data_dct[elevation])
+
+    # Create empty array to store flattened data in
+    data_flat = np.empty([N*N_el*N_azE, N_dsets])
+
+    # Set detector position
+    data_flat[:, 4] = det_pos[0]
+    data_flat[:, 5] = det_pos[1]
+    data_flat[:, 6] = det_pos[2]
+
+    # Loop over all dicts and flatten their data into data_flat
+    for i, (el, el_dct) in enumerate(data_dct.items()):
+        for j, ((az, logE_min, logE_max), dct) in enumerate(el_dct.items()):
+            # Determine indices
+            idx = N*(i*N_azE+j)
+
+            # Add az, el, logE_min and logE_max to the proper columns
+            data_flat[idx:idx+N, 0] = az
+            data_flat[idx:idx+N, 1] = el
+            data_flat[idx:idx+N, 2] = logE_min
+            data_flat[idx:idx+N, 3] = logE_max
+
+            # Add remaining data to the columns
+            for k, dset_name in enumerate(dsets_export):
+                data_flat[idx:idx+N, k+7] = dct[dset_name]
+
+    # Create header
+    header = ("azimuth elevation logE_min logE_max "
+              "position_xi position_yi position_zi {}").format(
+              ' '.join(dsets_export))
+
+    # Create format
+    fmt = "%i %i %+4.1f %+4.1f {}".format(' '.join(["%#10.10g"]*(N_dsets-4)))
+
+    # Save data
+    np.savetxt(filename, data_flat, fmt, header=header)
+
+
 # %% MAIN FUNCTION
 if(__name__ == '__main__'):
     # All processes run the cube
-    run_double_cube(N=100, el_rng=(40, 41), logE_rng=(3, 4))
+#    run_double_cube(N=100, el_rng=(40, 41), logE_rng=(3, 4))
 
     # Make a figure
 #    make_figure(100, None, 80, (0, 1))
