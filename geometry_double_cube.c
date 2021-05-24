@@ -224,8 +224,8 @@ static struct rubiks_cube *outer_cube;
 static int n_materials;
 static struct pumas_medium *media;
 
-const char *inner_data_filename = "SUPL_high_res1_mod.dat";
-const char *outer_data_filename = "SGM_regional_model_test_3.txt";
+const char *inner_data_filename = "SGM_local_model.txt";
+const char *outer_data_filename = "SGM_regional_model.txt";
 
 // Estimated location of detector in (GDA94, MGA54, AHD)
 const double position_i[3] = {658932, 5898244, -717};
@@ -971,7 +971,7 @@ void run_double_cube(int n_times, double azimuth, double elevation, double logE_
     states->avg_flux = w;
     states->avg_flux_err = sigma;
     char HDF5_filename[80];
-    sprintf(HDF5_filename, "double_N%g_El%02g.hdf5", (double)n_times, elevation);
+    sprintf(HDF5_filename, "data/double_N%g_El%02g.hdf5", (double)n_times, elevation);
     write_states_to_file(states, HDF5_filename);
     clock_gettime(CLOCK_MONOTONIC_RAW, &time_2);
 

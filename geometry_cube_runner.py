@@ -34,7 +34,7 @@ is_controller = bool(not rank)
 is_worker = bool(rank)
 
 # Write template for obtaining the name of the HDF5-file
-HDF5_file = "double_N{0:g}_El{1:02g}.hdf5"
+HDF5_file = "data/double_N{0:g}_El{1:02g}.hdf5"
 
 # Set logE spacing
 logE_spc = 0.1
@@ -433,7 +433,7 @@ def export_to_txt(filename, N, az_rng, el_rng, logE_rng):
 # %% MAIN FUNCTION
 if(__name__ == '__main__'):
     # All processes run the cube
-#    run_double_cube(N=100, el_rng=(40, 41), logE_rng=(3, 4))
+    run_double_cube(N=100, el_rng=(40, 41), logE_rng=(3, 4))
 
     # Make a figure
 #    make_figure(100, None, 80, (0, 1))
