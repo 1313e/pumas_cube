@@ -10,14 +10,7 @@
 int main(){
     // Obtain name of XML file
     const char *XML_file = "./materials/materials.xml";
-
-    // Obtain length of XML file name
-    int len = strlen(XML_file);
-
-    // Obtain filename without extension
-    char prefix[len-3];
-    strncpy(prefix, &XML_file[0], len-4);
-    prefix[len-4] = '\0';
+    const char *dump_file = "./materials/materials_dump";
 
     // Declare physics object
     struct pumas_physics *physics;
@@ -27,8 +20,6 @@ int main(){
                          "materials", NULL);
 
     // Dump to binary file
-    char *dump_file;
-    sprintf(dump_file, "%s_dump", prefix);
     FILE *file = fopen(dump_file, "wb+");
     pumas_physics_dump(physics, file);
     fclose(file);

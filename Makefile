@@ -6,6 +6,8 @@ LIBS := -Llib -lhdf5 -lcube -lpumas -lm
 build: build-c build-cython
 
 build-c:
+	@$(CC) PUMAS_physics_dump.c -o PUMAS_physics_dump $(CFLAGS) $(LIBS)
+	./PUMAS_physics_dump
 	@$(CC) geometry_double_cube.c -o geometry_double_cube $(CFLAGS) $(LIBS)
 
 build-cython:
