@@ -43,7 +43,7 @@ logE_spc = 0.1
 dsets_export = [
     'position_xf', 'position_yf', 'position_zf',
     'energy_i', 'energy_f']
-N_dsets = len(dsets_export)+7
+N_dsets = len(dsets_export)+4
 
 
 # %% FUNCTION DEFINITIONS
@@ -374,18 +374,11 @@ def export_to_txt(filename, N, az_rng, el_rng, logE_rng):
     # Create data_dct
     data_dct = {}
 
-    # Create empty variable for detector position
-    det_pos = []
-
     # Obtain data for every elevation requested
     for elevation in el_all:
         # Read in this elevation
         data_dct[elevation] = read_cube_HDF5(N, az_rng, elevation, logE_rng,
                                              *dsets_export)
-
-        # Save detector position if not done before
-        if not det_pos:
-            det_pos = data_dct[elevation]['attrs']['detector_pos']
 
         # Remove all attributes from this dict
         data_dct[elevation].pop('attrs')
@@ -396,11 +389,6 @@ def export_to_txt(filename, N, az_rng, el_rng, logE_rng):
 
     # Create empty array to store flattened data in
     data_flat = np.empty([N*N_el*N_azE, N_dsets])
-
-    # Set detector position
-    data_flat[:, 4] = det_pos[0]
-    data_flat[:, 5] = det_pos[1]
-    data_flat[:, 6] = det_pos[2]
 
     # Loop over all dicts and flatten their data into data_flat
     for i, (el, el_dct) in enumerate(data_dct.items()):
@@ -416,11 +404,10 @@ def export_to_txt(filename, N, az_rng, el_rng, logE_rng):
 
             # Add remaining data to the columns
             for k, dset_name in enumerate(dsets_export):
-                data_flat[idx:idx+N, k+7] = dct[dset_name]
+                data_flat[idx:idx+N, k+4] = dct[dset_name]
 
     # Create header
-    header = ("azimuth elevation logE_min logE_max "
-              "position_xi position_yi position_zi {}").format(
+    header = ("azimuth elevation logE_min logE_max {}").format(
               ' '.join(dsets_export))
 
     # Create format
@@ -433,9 +420,9 @@ def export_to_txt(filename, N, az_rng, el_rng, logE_rng):
 # %% MAIN FUNCTION
 if(__name__ == '__main__'):
     # All processes run the cube
-    run_double_cube(N=100, el_rng=(40, 41), logE_rng=(3, 4))
+#    run_double_cube(N=100, el_rng=(40, 41), logE_rng=(3, 4))
 
     # Make a figure
-#    make_figure(100, None, 80, (0, 1))
+#    make_figure(100, (0, 45), 40, (3, 4))
 
     pass
