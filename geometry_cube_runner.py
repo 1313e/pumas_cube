@@ -415,14 +415,3 @@ def export_to_txt(filename, N, az_rng, el_rng, logE_rng):
 
     # Save data
     np.savetxt(filename, data_flat, fmt, header=header)
-
-
-# %% MAIN FUNCTION
-if(__name__ == '__main__'):
-    # All processes run the cube
-#    run_double_cube(N=100, el_rng=(40, 41), logE_rng=(3, 4))
-
-    # Make a figure
-#    make_figure(100, (0, 45), 40, (3, 4))
-
-    pass
