@@ -53,20 +53,25 @@
 // Rubik's cube
 #include "cube.h"
 
+// Utility C-files
+#include "read_par_file.c"
+
 // Define pi
 #ifndef M_PI
 /* Define pi, if unknown */
 #define M_PI 3.14159265358979323846
 #endif
 
-/* Altitude at which the primary flux is sampled */
-#define PRIMARY_ALTITUDE 350
-
 /* Reference ground altitude out of the Rubik's cube models */
 #define OUTER_GROUND_LEVEL 0
 
 /* Reference density for the outer ground */
 #define OUTER_GROUND_DENSITY 2.67
+
+// Macros
+#define min(A, B) (A < B ? A : B)
+#define max(A, B) (A > B ? A : B)
+#define ffloor(x) ((long)x-(x<(long)x))
 
 // Macros for HDF5 writing
 #define CHECK_STATUS_AND_RETURN_ON_FAIL(status, return_value, ...) \
@@ -224,18 +229,21 @@ static struct rubiks_cube *outer_cube;
 static int n_materials;
 static struct pumas_medium *media;
 
-const char *inner_data_filename = "SGM_local_model.txt";
-const char *outer_data_filename = "SGM_regional_model.txt";
+static char inner_model_filename[256];
+static char outer_model_filename[256];
 
 // Estimated location of detector in (GDA94, MGA54, AHD)
-const double position_i[3] = {658932, 5898244, -717};
+static double det_position[3];
+
+/* Altitude at which the primary flux is sampled */
+static double PRIMARY_ALTITUDE;
 
 // Define struct for storing initial and final states of a muon
 struct pumas_states{
     // Model data used for inner cube
-    const char *inner_model_data;
+    const char *inner_model_filename;
     // Model data used for outer cube
-    const char *outer_model_data;
+    const char *outer_model_filename;
     // Number of particles
     size_t n_particles;
     // Lower azimuth limit
@@ -245,7 +253,7 @@ struct pumas_states{
     // Angular bin solid angle
     double solid_angle;
     // Detector position
-    double detector_pos[3];
+    double det_position[3];
     // Minimum log starting energy
     double logE_min;
     // Maximum log starting energy
@@ -505,19 +513,26 @@ enum pumas_step get_medium(struct pumas_context *context, struct pumas_state *st
 }
 
 // This function initializes the PUMAS physics and rubiks_cube cube
-void init_geometry(const char *inner_data_filename, const char *outer_data_filename){
-    // Load in physics
-    const char *file_physics = "materials/materials_dump";
-    FILE *file = fopen(file_physics, "rb");
-    if(file == NULL){
-        perror(file_physics);
-        exit_gracefully(EXIT_FAILURE);
-    }
-    pumas_physics_load(&physics, file);
-    fclose(file);
+void init_geometry(const char *input_par){
+    // Read input parameter file
+    struct run_params params;
+    read_par_file(input_par, &params);
 
-    // Obtain number of materials defined in the physics
-    n_materials = 5;
+    // Load in physics
+    pumas_physics_create(&physics, PUMAS_PARTICLE_MUON, params.MDF_filename,
+                         params.DEDX_dir, NULL);
+
+    // Obtain model files
+    strcpy(inner_model_filename, params.inner_model_filename);
+    strcpy(outer_model_filename, params.outer_model_filename);
+
+    // Obtain detector position
+    det_position[0] = params.det_position[0];
+    det_position[1] = params.det_position[1];
+    det_position[2] = params.det_position[2];
+
+    // Obtain number of materials defined
+    n_materials = params.n_materials;
 
     // Allocate memory for media
     media = (struct pumas_medium *)malloc(sizeof(struct pumas_medium)*n_materials);
@@ -527,11 +542,10 @@ void init_geometry(const char *inner_data_filename, const char *outer_data_filen
     }
 
     // Map PUMAS materials indices
-    pumas_physics_material_index(physics, "Air", &media[0].material);
-    pumas_physics_material_index(physics, "SgmWarrak", &media[1].material);
-    pumas_physics_material_index(physics, "SgmBasalt", &media[2].material);
-    pumas_physics_material_index(physics, "SgmStope", &media[3].material);
-    pumas_physics_material_index(physics, "SgmTunnel", &media[4].material);
+    int i;
+    for (i=0; i<n_materials; i++) {
+        pumas_physics_material_index(physics, params.material_names[i], &media[i].material);
+    }
 
     // Set all locals to get_locals
     for (int i=0; i<n_materials; i++) {
@@ -539,8 +553,14 @@ void init_geometry(const char *inner_data_filename, const char *outer_data_filen
     }
 
     // Create rubiks_cube objects
-    rubiks_cube_create(&inner_cube, inner_data_filename);
-    rubiks_cube_create(&outer_cube, outer_data_filename);
+    rubiks_cube_create(&inner_cube, inner_model_filename);
+    rubiks_cube_create(&outer_cube, outer_model_filename);
+
+    // Determine primary altitude
+    rubiks_cube_primary_altitude(outer_cube, &PRIMARY_ALTITUDE);
+
+    // Destroy params
+    run_params_destroy(&params);
 }
 
 // Function that initializes the pumas_states struct
@@ -614,13 +634,13 @@ static int write_states_to_file(struct pumas_states *states, const char *filenam
         file_id = H5Fcreate(filename, H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
 
         // If it did not exist yet, store some additional attributes
-        CREATE_STRING_ATTRIBUTE(file_id, "inner_model_data", states->inner_model_data);
-        CREATE_STRING_ATTRIBUTE(file_id, "outer_model_data", states->outer_model_data);
+        CREATE_STRING_ATTRIBUTE(file_id, "inner_model_filename", states->inner_model_filename);
+        CREATE_STRING_ATTRIBUTE(file_id, "outer_model_filename", states->outer_model_filename);
         CREATE_SINGLE_ATTRIBUTE(file_id, "n_particles", states->n_particles, H5T_NATIVE_ULONG);
         CREATE_SINGLE_ATTRIBUTE(file_id, "elevation", states->elevation, H5T_NATIVE_DOUBLE);
         CREATE_SINGLE_ATTRIBUTE(file_id, "solid_angle", states->solid_angle, H5T_NATIVE_DOUBLE);
         CREATE_SINGLE_ATTRIBUTE(file_id, "energy_threshold", states->energy_threshold, H5T_NATIVE_DOUBLE);
-        CREATE_1D_ARRAY_ATTRIBUTE(file_id, "detector_pos", dims_pos, states->detector_pos, H5T_NATIVE_DOUBLE);
+        CREATE_1D_ARRAY_ATTRIBUTE(file_id, "det_position", dims_pos, states->det_position, H5T_NATIVE_DOUBLE);
     }
 
     // Check if azimuth group exists
@@ -757,7 +777,7 @@ double flux_gccly(double cos_theta, double kinetic_energy, double charge)
             flux_gaisser(cs, kinetic_energy, charge);
 }
 
-void init_structs(){
+void init_structs(const char *input_par){
     /* Set the error handler callback. Whenever an error occurs during a
         * PUMAS function call, the supplied error handler will be evaluated,
         * resulting in an exit to the OS
@@ -768,7 +788,7 @@ void init_structs(){
         * example
         */
     // Load in physics and geometry data
-    init_geometry(inner_data_filename, outer_data_filename);
+    init_geometry(input_par);
 
     // Create new simulation context
     pumas_context_create(&context, physics, 0);
@@ -814,12 +834,12 @@ void run_double_cube(int n_times, double azimuth, double elevation, double logE_
     states->azimuth = azimuth;
     states->elevation = elevation;
     states->solid_angle = solid_angle;
-    states->inner_model_data = inner_data_filename;
-    states->outer_model_data = outer_data_filename;
+    states->inner_model_filename = inner_model_filename;
+    states->outer_model_filename = outer_model_filename;
     states->n_particles = n_times;
-    states->detector_pos[0] = position_i[0];
-    states->detector_pos[1] = position_i[1];
-    states->detector_pos[2] = position_i[2];
+    states->det_position[0] = det_position[0];
+    states->det_position[1] = det_position[1];
+    states->det_position[2] = det_position[2];
 
     // Perform Monte Carlo
     clock_gettime(CLOCK_MONOTONIC_RAW, &time_1);
@@ -873,9 +893,9 @@ void run_double_cube(int n_times, double azimuth, double elevation, double logE_
             .decayed = 0,
             .direction = {-dx, -dy, -dz}
         };
-        state.position[0] = position_i[0];
-        state.position[1] = position_i[1];
-        state.position[2] = position_i[2];
+        state.position[0] = det_position[0];
+        state.position[1] = det_position[1];
+        state.position[2] = det_position[2];
 
         // Add this state to states
         states->charge[i] = charge;
@@ -988,22 +1008,23 @@ int main(int narg, char * argv[]){
     /* Check the number of arguments */
     if (narg < 5) {
         fprintf(stderr,
-            "Usage: %s N_TIMES AZIMUTH ELEVATION "
+            "Usage: %s INPUT_PAR N_TIMES AZIMUTH ELEVATION "
             "KINETIC_ENERGY[_MIN] [KINETIC_ENERGY_MAX]\n",
             argv[0]);
         exit_gracefully(EXIT_FAILURE);
     }
 
     /* Parse the arguments */
-    const int n_times = strtod(argv[1], NULL);
-    const double azimuth = strtod(argv[2], NULL);
-    const double elevation = strtod(argv[3], NULL);
-    const double energy_min = strtod(argv[4], NULL);
+    const char *input_par = argv[1];
+    const int n_times = strtod(argv[2], NULL);
+    const double azimuth = strtod(argv[3], NULL);
+    const double elevation = strtod(argv[4], NULL);
+    const double energy_min = strtod(argv[5], NULL);
     const double energy_max =
-        (narg >= 6) ? strtod(argv[5], NULL) : energy_min;
+        (narg >= 7) ? strtod(argv[6], NULL) : energy_min;
 
     // Init structs
-    init_structs();
+    init_structs(input_par);
 
     // Call the model
     run_double_cube(n_times, azimuth, elevation, energy_min, energy_max, 1);

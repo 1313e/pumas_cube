@@ -174,13 +174,18 @@ def read_cube_HDF5(N, az_rng, elevation, logE_rng, *args):
 
 
 # Function that runs the double cube model
-def run_double_cube(N=10000, az_rng=(0, 360), el_rng=(40, 90),
+def run_double_cube(input_par, N=10000, az_rng=(0, 360), el_rng=(40, 90),
                     logE_rng=(-3, 4)):
     """
     Run the double Rubik's cube model in MPI.
 
     This function automatically takes care of angles that have already been
     simulated, and can be restarted from any point.
+
+    Parameters
+    ----------
+    input_par : str
+        The path towards the input parameters file to use for all runs.
 
     Optional
     --------
@@ -230,7 +235,7 @@ def run_double_cube(N=10000, az_rng=(0, 360), el_rng=(40, 90),
         el = comm.scatter([])
 
     # Initialize structs
-    ccube.init_structs()
+    ccube.init_structs(input_par)
 
     # MPI barrier
     comm.Barrier()
@@ -313,9 +318,9 @@ def make_figure(N, az_rng, elevation, logE_rng):
         ax.scatter(data_i['position_xf'], data_i['position_yf'],
                    data_i['position_zf'], vmin=vmin, vmax=vmax,
                    s=0.01, cmap=cmr.ember, c=data_i['position_zf'])
-    ax.scatter(*[[x] for x in attrs['detector_pos']], marker='x', s=100,
+    ax.scatter(*[[x] for x in attrs['det_position']], marker='x', s=100,
                label="Detector")
-    ax.text(*attrs['detector_pos'], "%s" % (tuple(attrs['detector_pos']),),
+    ax.text(*attrs['det_position'], "%s" % (tuple(attrs['det_position']),),
             fontsize=9)
 
     # Title

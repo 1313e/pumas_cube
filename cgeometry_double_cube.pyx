@@ -5,15 +5,20 @@
 cimport geometry_double_cube as cdouble_cube
 
 
-def init_structs():
+def init_structs(const char *input_par):
     """
     Initialize all structs required for running the double Rubik's cube model.
 
     This function MUST be called before any other function can be used.
 
+    Parameters
+    ----------
+    input_par : str
+        The path towards the input parameters file to use for all runs.
+
     """
 
-    cdouble_cube.init_structs()
+    cdouble_cube.init_structs(input_par)
 
 
 def run_double_cube(int N, double azimuth, double elevation, double logE_min,

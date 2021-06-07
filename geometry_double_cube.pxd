@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 cdef extern from "geometry_double_cube.c":
-    void init_structs()
+    void init_structs(const char *input_par)
 
     void run_double_cube(
         int n_times, double azimuth, double elevation, double logE_min,
