@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
-# distutils: include_dirs = .
+# distutils: include_dirs = ../src
 # cython: language_level=3, c_string_type=unicode, c_string_encoding=utf8
 
-cimport geometry_double_cube as cdouble_cube
+
+# %% IMPORTS
+from pumas_cube cimport geometry_double_cube as cdouble_cube
 
 
+# %% DEFINITIONS
 def init_structs(const char *input_par):
     """
     Initialize all structs required for running the double Rubik's cube model.

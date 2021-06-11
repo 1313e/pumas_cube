@@ -8,9 +8,14 @@ It provides the C and accompanied Python scripts used for the simulating muons i
 
 Installation
 ------------
-This library can be easily built with the ``Makefile`` by simply using ``make`` in the root directory.
+Before installation, one has to make sure that both the `Rubik's cube model`_ and `PUMAS muon transport engine`_ library are correctly installed.
+Instructions on how to do this can be found on the individual repos.
+
+After that, this library can be easily built with the ``Makefile`` by simply using ``make`` in the root directory.
 This will compile both the C scripts and the Cython extensions used by Python.
 
 Usage
 -----
-The double Rubik's cube model in ``geometry_double_cube.c`` can be executed by either calling it directly from the command-line or using the ``run_double_cube()``-function in Python.
+After installing the package, it can be imported with ``import pumas_cube`` in any Python script.
+The double Rubik's cube model together with PUMAS can then be executing by providing the ``run_double_cube`` function with a valid input parameters file (which can be found in `input <./input/input.par>`_).
+

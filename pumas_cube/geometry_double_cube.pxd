@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-cdef extern from "geometry_double_cube.c":
+cdef extern from "../src/geometry_double_cube.c":
     void init_structs(const char *input_par)
 
     void run_double_cube(

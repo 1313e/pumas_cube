@@ -39,6 +39,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -53,8 +54,12 @@
 // Rubik's cube
 #include "cube.h"
 
+// Header file
+#include "../include/geometry_double_cube.h"
+
 // Utility C-files
 #include "read_par_file.c"
+
 
 // Define pi
 #ifndef M_PI
@@ -229,6 +234,7 @@ static struct rubiks_cube *outer_cube;
 static int n_materials;
 static struct pumas_medium *media;
 
+static char output_dir[256];
 static char inner_model_filename[256];
 static char outer_model_filename[256];
 
@@ -523,6 +529,8 @@ void init_geometry(const char *input_par){
                          params.DEDX_dir, NULL);
 
     // Obtain model files
+    strcpy(output_dir, params.output_dir);
+    mkdir(output_dir, 0755);
     strcpy(inner_model_filename, params.inner_model_filename);
     strcpy(outer_model_filename, params.outer_model_filename);
 
@@ -991,7 +999,7 @@ void run_double_cube(int n_times, double azimuth, double elevation, double logE_
     states->avg_flux = w;
     states->avg_flux_err = sigma;
     char HDF5_filename[80];
-    sprintf(HDF5_filename, "data/double_N%g_El%02g.hdf5", (double)n_times, elevation);
+    sprintf(HDF5_filename, "%s/double_El%02g.hdf5", output_dir, elevation);
     write_states_to_file(states, HDF5_filename);
     clock_gettime(CLOCK_MONOTONIC_RAW, &time_2);
 

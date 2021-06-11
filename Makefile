@@ -1,21 +1,26 @@
 CFLAGS := -O3 -fPIC -g -std=gnu99 -pedantic -Wall -Wfatal-errors
+INCLUDES := -Iinclude
 LIBS := -Llib -lhdf5 -lcube -lpumas -lm
 
 .PHONY: build clean
 
-build: build-c build-cython
+build: lib build-cython
 
-build-c:
-	@$(CC) geometry_double_cube.c -o geometry_double_cube $(CFLAGS) $(LIBS)
+lib: lib/libgeometry_double_cube.so
+	@rm -f *.o
+
+lib/libgeometry_double_cube.so: src/geometry_double_cube.c include/geometry_double_cube.h
+	@mkdir -p lib
+	@$(CC) -o $@ $(CFLAGS) -shared $(INCLUDES) $(LIBS) $<
 
 build-cython:
-	pip install -r requirements.txt
 	python setup.py build_ext --inplace -i
+	pip install -e .
 
 clean: clean-c clean-build clean-pyc clean-cython
 
 clean-c:
-	rm -rf geometry_double_cube
+	@rm -rf lib bin
 
 clean-build:
 	rm -fr build/

@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
 """
-SOMETHING
-=========
-
+PUMAS Cube
+==========
 
 """
 
@@ -22,7 +21,10 @@ from mpi4pyd import MPI
 import numpy as np
 
 # Cython imports
-import cgeometry_double_cube as ccube
+import pumas_cube.cgeometry_double_cube as ccube
+
+# All declaration
+__all__ = ['export_to_txt', 'make_figure', 'read_cube_HDF5', 'run_double_cube']
 
 
 # %% GLOBALS
@@ -34,7 +36,7 @@ is_controller = bool(not rank)
 is_worker = bool(rank)
 
 # Write template for obtaining the name of the HDF5-file
-HDF5_file = "data/double_N{0:g}_El{1:02g}.hdf5"
+HDF5_file = "{0}/double_El{1:02g}.hdf5"
 
 # Set logE spacing
 logE_spc = 0.1
@@ -48,7 +50,7 @@ N_dsets = len(dsets_export)+4
 
 # %% FUNCTION DEFINITIONS
 # Function that reads in an HDF5-file created with 'double_geometry_cube.c'
-def read_cube_HDF5(N, az_rng, elevation, logE_rng, *args):
+def read_cube_HDF5(output_dir, az_rng, elevation, logE_rng, *args):
     """
     Reads in the HDF5-file created with the provided variables and returns a
     dict containing all attributes of this file plus all datasets specified in
@@ -56,8 +58,8 @@ def read_cube_HDF5(N, az_rng, elevation, logE_rng, *args):
 
     Parameters
     ----------
-    N : int
-        The number of muons that was simulated in the requested simulation.
+    output_dir : str
+        The path towards the directory where the output HDF5-files are stored.
     az_rng : int, 2-tuple of int or None
         All azimuth angles that must be read in from the file.
         If *None*, all azimuth angles available are read in.
@@ -79,7 +81,7 @@ def read_cube_HDF5(N, az_rng, elevation, logE_rng, *args):
     """
 
     # Obtain the name of the HDF5 file associated with this elevation
-    filename = HDF5_file.format(N, elevation)
+    filename = HDF5_file.format(output_dir, elevation)
 
     # Obtain absolute path to file
     filename = path.abspath(filename)
@@ -202,6 +204,11 @@ def run_double_cube(input_par, N=10000, az_rng=(0, 360), el_rng=(40, 90),
 
     """
 
+    # Read parameter file to obtain the output_dir
+    data = np.genfromtxt(input_par, dtype=str, comments="%")
+    data_dct = dict(data)
+    output_dir = data_dct['output_dir']
+
     # Determine Az+logE
     az = np.arange(*az_rng)
     logE = np.around(np.linspace(logE_rng[0], logE_rng[1],
@@ -243,7 +250,7 @@ def run_double_cube(input_par, N=10000, az_rng=(0, 360), el_rng=(40, 90),
     # Loop over all elevations
     for e in el:
         # Obtain the name of the HDF5-file
-        filename = HDF5_file.format(N, e)
+        filename = HDF5_file.format(output_dir, e)
 
         # Obtain all groups that are already in this file if it exists
         AzLogE_known = set()
@@ -267,15 +274,15 @@ def run_double_cube(input_par, N=10000, az_rng=(0, 360), el_rng=(40, 90),
 
 
 # This function creates a figure showing the end positions of all muons
-def make_figure(N, az_rng, elevation, logE_rng):
+def make_figure(output_dir, az_rng, elevation, logE_rng):
     """
     Creates a figure showing the final positions of all muons simulated with
     the given arguments.
 
     Parameters
     ----------
-    N : int
-        The number of muons that was simulated in the requested simulation.
+    output_dir : str
+        The path towards the directory where the output HDF5-files are stored.
     az_rng : int, 2-tuple of int or None
         All azimuth angles that must be read in from the file.
         If *None*, all azimuth angles available are read in.
@@ -298,7 +305,7 @@ def make_figure(N, az_rng, elevation, logE_rng):
         logE_rng = (-3, 4)
 
     # Load in the data from the HDF5-file
-    data = read_cube_HDF5(N, az_rng, elevation, logE_rng,
+    data = read_cube_HDF5(output_dir, az_rng, elevation, logE_rng,
                           'position_xf', 'position_yf', 'position_zf')
     attrs = data['attrs']
 
@@ -345,7 +352,7 @@ def make_figure(N, az_rng, elevation, logE_rng):
 
 
 # This function reads in data and exports it to txt
-def export_to_txt(filename, N, az_rng, el_rng, logE_rng):
+def export_to_txt(filename, output_dir, az_rng, el_rng, logE_rng):
     """
     Exports the data associated with the given arguments in a text file
     `filename`.
@@ -354,8 +361,8 @@ def export_to_txt(filename, N, az_rng, el_rng, logE_rng):
     ----------
     filename : str
         The path of the file the data must be stored in.
-    N : int
-        The number of muons that was simulated in the requested simulation.
+    output_dir : str
+        The path towards the directory where the output HDF5-files are stored.
     az_rng : int, 2-tuple of int or None
         All azimuth angles that must be read in from the file.
         If *None*, all azimuth angles available are read in.
@@ -382,8 +389,8 @@ def export_to_txt(filename, N, az_rng, el_rng, logE_rng):
     # Obtain data for every elevation requested
     for elevation in el_all:
         # Read in this elevation
-        data_dct[elevation] = read_cube_HDF5(N, az_rng, elevation, logE_rng,
-                                             *dsets_export)
+        data_dct[elevation] = read_cube_HDF5(
+            output_dir, az_rng, elevation, logE_rng, *dsets_export)
 
         # Remove all attributes from this dict
         data_dct[elevation].pop('attrs')

@@ -18,6 +18,8 @@ enum data_types {
 
 // Define struct that holds all read-in parameters
 struct run_params{
+    // Path to directory where output must be written to
+    char output_dir[MAX_PAR_LEN];
     // Path to inner Rubik's Cube model data
     char inner_model_filename[MAX_PAR_LEN];
     // Path to outer Rubik's Cube model data
@@ -49,6 +51,11 @@ int read_par_file(const char *filename, struct run_params *params){
 
     // Define all parameters
     int n_par = 0;
+
+    // OUTPUT_DIR
+    strncpy(par_keys[n_par], "output_dir", MAX_PAR_LEN);
+    par_ptrs[n_par] = params->output_dir;
+    par_types[n_par++] = STRING;
 
     // INNER_MODEL_FILENAME
     strncpy(par_keys[n_par], "inner_model_filename", MAX_PAR_LEN);

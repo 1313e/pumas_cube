@@ -1,3 +1,6 @@
+% Output directory
+output_dir                  data
+
 % Rubik's Cube model files
 inner_model_filename        SGM_local_model.txt
 outer_model_filename        SGM_regional_model.txt
