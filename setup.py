@@ -9,14 +9,21 @@ Setup file for the *PUMAS_Cube* package.
 # %% IMPORTS
 # Built-in imports
 from codecs import open
+from os import path
 import re
 
 # Package imports
 from Cython.Build import cythonize
+from distutils.dist import Distribution
 from setuptools import Extension, find_packages, setup
 
 
 # %% SETUP DEFINITION
+# Obtain library information from setup.cfg
+dist = Distribution()
+dist.parse_config_files()
+libs_cfg = {key: val[1] for key, val in dist.get_option_dict('libs').items()}
+
 # Get the requirements list
 with open('requirements.txt', 'r') as f:
     requirements = f.read().splitlines()
@@ -38,7 +45,18 @@ setup(name="pumas_cube",
               name='pumas_cube.cgeometry_double_cube',
               sources=["pumas_cube/cgeometry_double_cube.pyx"],
               libraries=['hdf5', 'cube', 'pumas'],
-              extra_compile_args=["-O3", "-fPIC"])]),
+              extra_compile_args=["-O3", "-fPIC"],
+              library_dirs=[
+                  path.join(libs_cfg['cube_dir'], "lib"),
+                  path.join(libs_cfg['pumas_dir'], "lib")],
+              runtime_library_dirs=[
+                  path.join(libs_cfg['cube_dir'], "lib"),
+                  path.join(libs_cfg['pumas_dir'], "lib")],
+              include_dirs=[
+                  path.join(libs_cfg['cube_dir'], "include"),
+                  path.join(libs_cfg['pumas_dir'], "include")],
+              language='c',
+              )]),
       python_requires='>=3.6, <4',
       packages=find_packages(),
       package_dir={'pumas_cube': "pumas_cube"},

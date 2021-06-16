@@ -8,11 +8,13 @@ It provides the C and accompanied Python scripts used for the simulating muons i
 
 Installation
 ------------
-Before installation, one has to make sure that both the `Rubik's cube model`_ and `PUMAS muon transport engine`_ library are correctly installed.
-Instructions on how to do this can be found on the individual repos.
+Before installation, one has to make sure that both the `Rubik's cube model`_ and `PUMAS muon transport engine`_ libraries are correctly installed.
+The paths towards these libraries must be provided in the ``setup.cfg`` file.
+Additionally, this library requires the HDF5 library as well.
 
 After that, this library can be easily built with the ``Makefile`` by simply using ``make`` in the root directory.
 This will compile both the C scripts and the Cython extensions used by Python.
+Alternatively, one can solely install the Python interface with ``pip install .`` in the root directory.
 
 Usage
 -----
