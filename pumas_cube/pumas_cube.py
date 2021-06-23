@@ -24,7 +24,8 @@ import numpy as np
 import pumas_cube.cgeometry_double_cube as ccube
 
 # All declaration
-__all__ = ['export_to_txt', 'make_figure', 'read_cube_HDF5', 'run_double_cube']
+__all__ = ['export_to_txt', 'make_hist', 'make_scatter', 'read_cube_HDF5',
+           'run_double_cube']
 
 
 # %% GLOBALS
@@ -47,6 +48,48 @@ dsets_export = [
     'energy_i', 'energy_f']
 N_dsets = len(dsets_export)+4
 
+# Define dict of units for all datasets
+unit_dct = {
+    'det_position': r'm',
+    'elevation': r'\degree',
+    'energy_threshold': r'GeV',
+    'inner_model_filename': '',
+    'n_particles': '',
+    'outer_model_filename': '',
+    'solid_angle': r'\degree',
+    'azimuth': r'\degree',
+    'avg_flux': r'GeV^{-1}m^{-2}s^{-2}sr^{-1}',
+    'avg_flux_err': r'GeV^{-1}m^{-2}s^{-2}sr^{-1}',
+    'energy_max': r'GeV',
+    'energy_min': r'GeV',
+    'logE_max': r'GeV dex',
+    'logE_min': r'GeV dex',
+    'random_seed': '',
+    'azimuth_i': r'\degree',
+    'charge': '',
+    'decayed': '',
+    'density_f': r'g/cm^3',
+    'direction_xf': '',
+    'direction_xi': '',
+    'direction_yf': '',
+    'direction_yi': '',
+    'direction_zf': '',
+    'direction_zi': '',
+    'distance_f': r'm',
+    'elevation_i': r'\degree',
+    'energy_f': r'GeV',
+    'energy_i': r'GeV',
+    'event': '',
+    'flux_f': r'GeV^{-1}m^{-2}s^{-2}sr^{-1}',
+    'grammage_f': r'kg/m^2',
+    'position_xf': r'm',
+    'position_yf': r'm',
+    'position_zf': r'm',
+    'rock_id_f': '',
+    'time_f': r'm/c',
+    'weight_f': '',
+    'weight_i': ''}
+
 
 # %% FUNCTION DEFINITIONS
 # Function that reads in an HDF5-file created with 'double_geometry_cube.c'
@@ -68,6 +111,9 @@ def read_cube_HDF5(output_dir, az_rng, elevation, logE_rng, *args):
     logE_rng : 2-tuple of float or None
         The range of energies that must be read in from the file.
         If *None*, all energies in the range `[-3, 4]` are read in.
+
+    Optional
+    --------
     args : positional arguments
         The names of all datasets that must be read from the HDF5-file.
         If `args` is empty, all datasets are read.
@@ -77,6 +123,7 @@ def read_cube_HDF5(output_dir, az_rng, elevation, logE_rng, *args):
     data : dict
         Dict containing all attributes of the HDF5-file and every group/dataset
         that was requested in `args` or all datasets if `args` is empty.
+        Groups themselves are stored as dicts as well.
 
     """
 
@@ -114,7 +161,7 @@ def read_cube_HDF5(output_dir, az_rng, elevation, logE_rng, *args):
     with h5py.File(filename, mode='r') as file:
         # Read in all the attributes
         for attr in file.attrs:
-            if attr.endswith('model_data'):
+            if attr.endswith('model_filename'):
                 data['attrs'][attr] = file.attrs[attr].decode('utf-8')
             else:
                 data['attrs'][attr] = file.attrs[attr]
@@ -274,25 +321,46 @@ def run_double_cube(input_par, N=10000, az_rng=(0, 360), el_rng=(40, 90),
 
 
 # This function creates a figure showing the end positions of all muons
-def make_figure(output_dir, az_rng, elevation, logE_rng):
+def make_hist(dset, output_dir, az_rng, el_rng, logE_rng, savefig=None,
+              nbins=100, figsize=(6.4, 4.8)):
     """
-    Creates a figure showing the final positions of all muons simulated with
-    the given arguments.
+    Creates a histogram plot showing the `dset` values of all muons simulated
+    with the given arguments.
 
     Parameters
     ----------
+    dset : str
+        The dataset for which a histogram must be made.
     output_dir : str
         The path towards the directory where the output HDF5-files are stored.
     az_rng : int, 2-tuple of int or None
         All azimuth angles that must be read in from the file.
         If *None*, all azimuth angles available are read in.
-    elevation : int
-        The elevation angle that was simulated in the requested simulation.
+    el_rng : int, 2-tuple of int
+        The range of elevation angles that must be read in from the files.
+        Note that using a range of elevations can become disorganized very
+        quickly.
     logE_rng : 2-tuple of float or None
         The range of energies that must be read in from the file.
         If *None*, all energies in the range `[-3, 4]` are read in.
 
+    Optional
+    --------
+    savefig : str or None. Default: None
+        If not *None*, the path where the scatter plot must be saved to.
+        Else, the plot will simply be shown.
+    nbins : int. Default: 100
+        The number of bins to use in the histogram.
+    figsize : tuple of float. Default: (6.4, 4.8)
+        The size of the figure in inches.
+
     """
+
+    # Set required elevations
+    if isinstance(el_rng, int):
+        el_all = [el_rng]
+    else:
+        el_all = np.arange(*el_rng)
 
     # Check values of azimuth and logE_rng
     if isinstance(az_rng, int):
@@ -304,27 +372,174 @@ def make_figure(output_dir, az_rng, elevation, logE_rng):
     if logE_rng is None:
         logE_rng = (-3, 4)
 
-    # Load in the data from the HDF5-file
-    data = read_cube_HDF5(output_dir, az_rng, elevation, logE_rng,
-                          'position_xf', 'position_yf', 'position_zf')
-    attrs = data['attrs']
+    # Create data_dct
+    attrs = None
+    data_dct = {}
 
-    # Obtain all keys in data
-    keys = list(data.keys())
-    keys.remove('attrs')
+    # Obtain data for every elevation requested
+    for elevation in el_all:
+        # Read in this elevation
+        dct = read_cube_HDF5(
+            output_dir, az_rng, elevation, logE_rng, dset)
 
-    # Determine lowest and highest value in the Z-direction
-    vmin = min([min(data[key]['position_zf']) for key in keys])
-    vmax = max([max(data[key]['position_zf']) for key in keys])
+        # Obtain attrs if not obtained already
+        if attrs is None:
+            attrs = dct['attrs']
+
+        # Remove all attributes from this dict
+        dct.pop('attrs')
+
+        # Add to data_dct
+        data_dct[elevation] = dct
+
+    # Determine lengths
+    N = int(attrs['n_particles'])
+    N_el = len(data_dct)
+    N_azE = len(data_dct[elevation])
+    N_total = N*N_el*N_azE
+
+    # Create empty array to store flattened data in
+    data_flat = np.empty(N_total)
+
+    # Loop over all dicts and flatten their data into data_flat
+    for i, el_dct in enumerate(data_dct.values()):
+        for j, dct in enumerate(el_dct.values()):
+            # Determine indices
+            idx = N*(i*N_azE+j)
+
+            # Add this dataset to the data_flat
+            data_flat[idx:idx+N] = dct[dset]
+
+    # Create histogram plot of all muons
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot()
+
+    # Create histogram
+    ax.hist(data_flat, bins=nbins, log=True)
+
+    # Title
+    fig.suptitle(
+        r"$N_{\mathrm{par}} = %s, Az = [%s, %s]\degree, El = [%s, %s]\degree, "
+        r"E_{\mathrm{det}} = [10^{%s}, 10^{%s}]\,\mathrm{GeV}$"
+        % (e13.f2tex(N_total, sdigits=2),
+           int(azimuth[0]), int(azimuth[-1]+1),
+           int(el_all[0]), int(el_all[-1]+1),
+           logE_rng[0], logE_rng[1],
+           ))
+
+    # Labels
+    ax.set_xlabel(r"%s [$\mathrm{%s}$]" % (dset, unit_dct[dset]))
+    ax.set_ylabel("Count")
+
+    # If savefig is not None, save the figure
+    if savefig is not None:
+        plt.savefig(savefig, dpi=100)
+        plt.close(fig)
+
+    # Else, simply show it
+    else:
+        plt.show()
+
+
+# This function creates a figure showing the end positions of all muons
+def make_scatter(output_dir, az_rng, el_rng, logE_rng, savefig=None,
+                 figsize=(6.4, 4.8)):
+    """
+    Creates a scatter plot showing the final positions of all muons simulated
+    with the given arguments.
+
+    Parameters
+    ----------
+    output_dir : str
+        The path towards the directory where the output HDF5-files are stored.
+    az_rng : int, 2-tuple of int or None
+        All azimuth angles that must be read in from the file.
+        If *None*, all azimuth angles available are read in.
+    el_rng : int, 2-tuple of int
+        The range of elevation angles that must be read in from the files.
+        Note that using a range of elevations can become disorganized very
+        quickly.
+    logE_rng : 2-tuple of float or None
+        The range of energies that must be read in from the file.
+        If *None*, all energies in the range `[-3, 4]` are read in.
+
+    Optional
+    --------
+    savefig : str or None. Default: None
+        If not *None*, the path where the scatter plot must be saved to.
+        Else, the plot will simply be shown.
+    figsize : tuple of float. Default: (6.4, 4.8)
+        The size of the figure in inches.
+
+    """
+
+    # Set required elevations
+    if isinstance(el_rng, int):
+        el_all = [el_rng]
+    else:
+        el_all = np.arange(*el_rng)
+
+    # Check values of azimuth and logE_rng
+    if isinstance(az_rng, int):
+        azimuth = [az_rng]
+    else:
+        if az_rng is None:
+            az_rng = (0, 360)
+        azimuth = np.arange(*az_rng)
+    if logE_rng is None:
+        logE_rng = (-3, 4)
+
+    # Create data_dct
+    attrs = None
+    vmin = np.infty
+    vmax = -np.infty
+    data_dct = {}
+
+    # Obtain data for every elevation requested
+    for elevation in el_all:
+        # Read in this elevation
+        dct = read_cube_HDF5(
+            output_dir, az_rng, elevation, logE_rng,
+            'position_xf', 'position_yf', 'position_zf')
+
+        # Obtain attrs if not obtained already
+        if attrs is None:
+            attrs = dct['attrs']
+
+        # Remove all attributes from this dict
+        dct.pop('attrs')
+
+        # Determine vmin and vmax
+        vmin = min(vmin, *[min(dct[key]['position_zf']) for key in dct.keys()])
+        vmax = max(vmax, *[min(dct[key]['position_zf']) for key in dct.keys()])
+
+        # Add to data_dct
+        data_dct[elevation] = dct
+
+    # Determine lengths
+    N = attrs['n_particles']
+    N_el = len(data_dct)
+    N_azE = len(data_dct[elevation])
+    N_total = int(N*N_el*N_azE)
 
     # Create 3D scatter plot of exit locations of all muons
-    fig = plt.figure()
+    fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(projection='3d')
-    for key in keys:
-        data_i = data[key]
-        ax.scatter(data_i['position_xf'], data_i['position_yf'],
-                   data_i['position_zf'], vmin=vmin, vmax=vmax,
-                   s=0.01, cmap=cmr.ember, c=data_i['position_zf'])
+
+    # Loop over all dicts in data_dct
+    for data in data_dct.values():
+        # Obtain all keys
+        keys = list(data.keys())
+
+        # Loop over all keys
+        for key in keys:
+            # Create scatter plot for this elevation
+            data_i = data[key]
+            ax.scatter(data_i['position_xf'], data_i['position_yf'],
+                       data_i['position_zf'], vmin=vmin, vmax=vmax,
+                       s=0.01, cmap=cmr.ember, c=data_i['position_zf'])
+
+    # Detector position
     ax.scatter(*[[x] for x in attrs['det_position']], marker='x', s=100,
                label="Detector")
     ax.text(*attrs['det_position'], "%s" % (tuple(attrs['det_position']),),
@@ -332,23 +547,30 @@ def make_figure(output_dir, az_rng, elevation, logE_rng):
 
     # Title
     fig.suptitle(
-        r"$N_{\mathrm{par}} = %s, Az = [%s, %s]\degree, "
-        r"El = %s\degree, E_{\mathrm{det}} = [%s, %s]\,\mathrm{GeV}, "
-        r"E_{\mathrm{max}} = %s\,\mathrm{GeV}$"
-        % (e13.f2tex(N*(len(keys)), sdigits=2),
-           int(azimuth[0]), int(azimuth[-1]+1), int(elevation),
-           e13.f2tex(10**logE_rng[0], sdigits=2),
-           e13.f2tex(10**logE_rng[1], sdigits=2),
-           e13.f2tex(attrs['energy_threshold'], sdigits=2),
+        r"$N_{\mathrm{par}} = %s, Az = [%s, %s]\degree, El = [%s, %s]\degree, "
+        r"E_{\mathrm{det}} = [10^{%s}, 10^{%s}]\,\mathrm{GeV}$"
+        % (e13.f2tex(N_total, sdigits=2),
+           int(azimuth[0]), int(azimuth[-1]+1),
+           int(el_all[0]), int(el_all[-1]+1),
+           logE_rng[0], logE_rng[1],
            ))
 
     # Labels
-    ax.set_xlabel("X-coordinate (MGA54)[m]")
-    ax.set_ylabel("Y-coordinate (GDA94)[m]")
-    ax.set_zlabel("Z-coordinate (AHD)[m]")
+    ax.set_xlabel("X-pos (MGA54)[m]")
+    ax.set_ylabel("Y-pos (GDA94)[m]")
+    ax.set_zlabel("Z-pos (AHD)[m]")
 
     # Legend
     ax.legend(loc='best')
+
+    # If savefig is not None, save the figure
+    if savefig is not None:
+        plt.savefig(savefig, dpi=100)
+        plt.close(fig)
+
+    # Else, simply show it
+    else:
+        plt.show()
 
 
 # This function reads in data and exports it to txt
@@ -384,6 +606,7 @@ def export_to_txt(filename, output_dir, az_rng, el_rng, logE_rng):
         el_all = np.arange(*el_rng)
 
     # Create data_dct
+    N = None
     data_dct = {}
 
     # Obtain data for every elevation requested
@@ -392,15 +615,20 @@ def export_to_txt(filename, output_dir, az_rng, el_rng, logE_rng):
         data_dct[elevation] = read_cube_HDF5(
             output_dir, az_rng, elevation, logE_rng, *dsets_export)
 
+        # Obtain N if not obtained already
+        if N is None:
+            N = int(data_dct[elevation]['attrs']['n_particles'])
+
         # Remove all attributes from this dict
         data_dct[elevation].pop('attrs')
 
     # Determine lengths
     N_el = len(data_dct)
     N_azE = len(data_dct[elevation])
+    N_total = N*N_el*N_azE
 
     # Create empty array to store flattened data in
-    data_flat = np.empty([N*N_el*N_azE, N_dsets])
+    data_flat = np.empty([N_total, N_dsets])
 
     # Loop over all dicts and flatten their data into data_flat
     for i, (el, el_dct) in enumerate(data_dct.items()):

@@ -1,37 +1,10 @@
 /*
- * This is free and unencumbered software released into the public domain.
- *
- * Anyone is free to copy, modify, publish, use, compile, sell, or
- * distribute this software, either in source code form or as a compiled
- * binary, for any purpose, commercial or non-commercial, and by any
- * means.
- *
- * In jurisdictions that recognize copyright laws, the author or authors
- * of this software dedicate any and all copyright interest in the
- * software to the public domain. We make this dedication for the benefit
- * of the public at large and to the detriment of our heirs and
- * successors. We intend this dedication to be an overt act of
- * relinquishment in perpetuity of all present and future rights to this
- * software under copyright law.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
- * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
- * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * For more information, please refer to <http://unlicense.org>
- */
+Copyright (C) 2021 Ellert van der Velden
+All rights reserved.
 
-/* This example illustrates the backward computation of a transmitted through
- * a simple geometry composed of two layers: Standard Rock and Air. The Air
- * medium has an exponential density profile. If a maximum kinetic energy is
- * provided the flux is integrated between energy_min and energy_max.
- * Otherwise a point estimate of the flux is done, at the provided kinetic
- * energy.
- */
+This software is free software, distributed under the BSD-3 License.
+You may redistribute and/or modify it without any restrictions, as long as the conditions specified in the terms of the BSD-3 license (included) are met.
+*/
 
 /* Standard library includes */
 #include <errno.h>
@@ -231,6 +204,7 @@ static struct pumas_context * context = NULL;
 static struct rubiks_cube *inner_cube;
 static struct rubiks_cube *outer_cube;
 
+static _Bool double_cube_flag;
 static int n_materials;
 static struct pumas_medium *media;
 
@@ -408,12 +382,14 @@ enum rubiks_cube_return get_cube(struct pumas_state *state, int *rock_id_ptr,
 
     // Check if cube was found within inner cube model
     if (status == RUBIKS_CUBE_RETURN_CUBE_NOT_FOUND) {
-        // If not, search outer cube model instead
-        status = rubiks_cube_find_cube(state->position[0], state->position[1],
-                                       state->position[2], state->direction[0]*sgn,
-                                       state->direction[1]*sgn, state->direction[2]*sgn,
-                                       outer_cube, NULL, NULL, NULL, density_ptr, rock_id_ptr,
-                                       step_ptr);
+        // If not, search outer cube model instead if it is different from the inner cube model
+        if (double_cube_flag) {
+            status = rubiks_cube_find_cube(state->position[0], state->position[1],
+                                           state->position[2], state->direction[0]*sgn,
+                                           state->direction[1]*sgn, state->direction[2]*sgn,
+                                           outer_cube, NULL, NULL, NULL, density_ptr, rock_id_ptr,
+                                           step_ptr);
+        }
 
         // Check if cube was found within outer cube model
         if (status == RUBIKS_CUBE_RETURN_CUBE_NOT_FOUND) {
@@ -501,7 +477,7 @@ enum pumas_step get_medium(struct pumas_context *context, struct pumas_state *st
         // Determine if the current cube is valid
         if (status != RUBIKS_CUBE_RETURN_CUBE_NOT_FOUND) {
             // If so, retrieve proper media
-            *medium_ptr = &media[rock_id-1];
+            *medium_ptr = &media[rock_id];
         }
         else {
             // If not, set it to NULL
@@ -562,7 +538,15 @@ void init_geometry(const char *input_par){
 
     // Create rubiks_cube objects
     rubiks_cube_create(&inner_cube, inner_model_filename);
-    rubiks_cube_create(&outer_cube, outer_model_filename);
+
+    // Only load outer model if it is different from the inner model
+    if (strncasecmp(inner_model_filename, outer_model_filename, strlen(inner_model_filename)) != 0){
+        double_cube_flag = true;
+        rubiks_cube_create(&outer_cube, outer_model_filename);
+    }
+    else {
+        double_cube_flag = false;
+    }
 
     // Determine primary altitude
     rubiks_cube_primary_altitude(outer_cube, &PRIMARY_ALTITUDE);

@@ -3,7 +3,7 @@ output_dir                  data
 
 % Rubik's Cube model files
 inner_model_filename        SGM_local_model.txt
-outer_model_filename        SGM_regional_model.txt
+outer_model_filename        SGM_regional_model.txt          % If the same value as 'inner_model_filename', only a single cube model will be used
 
 % Detector position
 det_position_x              658932
@@ -13,7 +13,7 @@ det_position_z              -717
 % Materials
 MDF_filename                materials/materials.xml
 DEDX_dir                    materials
-n_materials                 5
+n_materials                 5                               % This value MUST appear before the specifications of the materials below
 material_0                  Air
 material_1                  SgmWarrak
 material_2                  SgmBasalt
