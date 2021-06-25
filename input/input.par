@@ -2,8 +2,9 @@
 output_dir                  data
 
 % Rubik's Cube model files
-inner_model_filename        SGM_local_model.txt
-outer_model_filename        SGM_regional_model.txt          % If the same value as 'inner_model_filename', only a single cube model will be used
+n_models                    2                               % This value MUST appear before the specifications of the models below
+cube_model_0                SGM_local_model.txt
+cube_model_1                SGM_regional_model.txt
 
 % Detector position
 det_position_x              658932

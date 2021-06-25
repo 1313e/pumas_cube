@@ -21,11 +21,11 @@ from mpi4pyd import MPI
 import numpy as np
 
 # Cython imports
-import pumas_cube.cgeometry_double_cube as ccube
+import pumas_cube.cgeometry_multi_cube as ccube
 
 # All declaration
 __all__ = ['export_to_txt', 'make_hist', 'make_scatter', 'read_cube_HDF5',
-           'run_double_cube']
+           'run_multi_cube']
 
 
 # %% GLOBALS
@@ -37,7 +37,7 @@ is_controller = bool(not rank)
 is_worker = bool(rank)
 
 # Write template for obtaining the name of the HDF5-file
-HDF5_file = "{0}/double_El{1:02g}.hdf5"
+HDF5_file = "{0}/multi_El{1:02g}.hdf5"
 
 # Set logE spacing
 logE_spc = 0.1
@@ -53,9 +53,7 @@ unit_dct = {
     'det_position': r'm',
     'elevation': r'\degree',
     'energy_threshold': r'GeV',
-    'inner_model_filename': '',
     'n_particles': '',
-    'outer_model_filename': '',
     'solid_angle': r'\degree',
     'azimuth': r'\degree',
     'avg_flux': r'GeV^{-1}m^{-2}s^{-2}sr^{-1}',
@@ -92,7 +90,7 @@ unit_dct = {
 
 
 # %% FUNCTION DEFINITIONS
-# Function that reads in an HDF5-file created with 'double_geometry_cube.c'
+# Function that reads in an HDF5-file created with 'multi_geometry_cube.c'
 def read_cube_HDF5(output_dir, az_rng, elevation, logE_rng, *args):
     """
     Reads in the HDF5-file created with the provided variables and returns a
@@ -161,7 +159,7 @@ def read_cube_HDF5(output_dir, az_rng, elevation, logE_rng, *args):
     with h5py.File(filename, mode='r') as file:
         # Read in all the attributes
         for attr in file.attrs:
-            if attr.endswith('model_filename'):
+            if attr.startswith('cube_model_'):
                 data['attrs'][attr] = file.attrs[attr].decode('utf-8')
             else:
                 data['attrs'][attr] = file.attrs[attr]
@@ -222,11 +220,11 @@ def read_cube_HDF5(output_dir, az_rng, elevation, logE_rng, *args):
     return(data)
 
 
-# Function that runs the double cube model
-def run_double_cube(input_par, N=10000, az_rng=(0, 360), el_rng=(40, 90),
+# Function that runs the multi cube model
+def run_multi_cube(input_par, N=10000, az_rng=(0, 360), el_rng=(40, 90),
                     logE_rng=(-3, 4)):
     """
-    Run the double Rubik's cube model in MPI.
+    Run the multi Rubik's cube model in MPI.
 
     This function automatically takes care of angles that have already been
     simulated, and can be restarted from any point.
@@ -314,7 +312,7 @@ def run_double_cube(input_par, N=10000, az_rng=(0, 360), el_rng=(40, 90),
 
         # Loop over all assigned AzLogE and execute
         for azloge in az_logE:
-            ccube.run_double_cube(N, azloge[0], e, *azloge[1], 0)
+            ccube.run_multi_cube(N, azloge[0], e, *azloge[1], 0)
 
     # Exit
     ccube.destroy_structs()
@@ -578,6 +576,8 @@ def export_to_txt(filename, output_dir, az_rng, el_rng, logE_rng):
     """
     Exports the data associated with the given arguments in a text file
     `filename`.
+
+    The actual exported data is defined in :obj:`~dsets_export`.
 
     Parameters
     ----------

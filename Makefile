@@ -6,10 +6,10 @@ LIBS := -Llib -lhdf5 -lcube -lpumas -lm
 
 build: lib build-cython
 
-lib: lib/libgeometry_double_cube.so
+lib: lib/libgeometry_multi_cube.so
 	@rm -f *.o
 
-lib/libgeometry_double_cube.so: src/geometry_double_cube.c include/geometry_double_cube.h
+lib/libgeometry_double_cube.so: src/geometry_multi_cube.c include/geometry_multi_cube.h
 	@mkdir -p lib
 	@$(CC) -o $@ $(CFLAGS) -shared $(INCLUDES) $(LIBS) $<
 
@@ -33,5 +33,5 @@ clean-pyc:
 	find . -name '*~' -exec rm -f {} +
 
 clean-cython:
-	find . -name 'cgeometry_double_cube.c' -exec rm -f {} +
+	find . -name 'cgeometry_multi_cube.c' -exec rm -f {} +
 	find . -name '*.so' -exec rm -f {} +

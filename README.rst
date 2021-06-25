@@ -21,13 +21,13 @@ Usage
 Running the models
 ++++++++++++++++++
 After installing the package, it can be imported with ``import pumas_cube`` in any Python script.
-This gives one access to the ``run_double_cube`` function, which runs the double Rubik's cube model together with PUMAS, and the various utility functions used for analyzing the data that this process produces.
+This gives one access to the ``run_multi_cube`` function, which runs the double Rubik's cube model together with PUMAS, and the various utility functions used for analyzing the data that this process produces.
 
-Using the ``run_double_cube`` function is pretty straight-forward.
+Using the ``run_multi_cube`` function is pretty straight-forward.
 First, we need to prepare an input parameters file, which can be found in `input <./input/input.par>`_.
 This file takes several parameters, including where all the output HDF5-files should be stored; what Rubik's cube model files should be used; what the position of the muon detector is; where the MDF file is with all required materials; and what ``rock_id`` in the Rubik's cube files corresponds to what material.
 
-After making sure that the input parameters file has the correct values in it, one can provide it to the ``run_double_cube`` function together with a few parameters stating what the arrival directions and energies are of the muons we want to explore.
+After making sure that the input parameters file has the correct values in it, one can provide it to the ``run_multi_cube`` function together with a few parameters stating what the arrival directions and energies are of the muons we want to explore.
 For example:
 
 .. code:: python
@@ -36,7 +36,7 @@ For example:
     import pumas_cube
 
     # Run double cube model
-    pumas_cube.run_double_cube('input.par',
+    pumas_cube.run_multi_cube('input.par',
                                N=100,
                                az_rng=(230, 235),
                                el_rng=(10, 20),

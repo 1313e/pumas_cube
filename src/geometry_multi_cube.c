@@ -28,7 +28,7 @@ You may redistribute and/or modify it without any restrictions, as long as the c
 #include "cube.h"
 
 // Header file
-#include "../include/geometry_double_cube.h"
+#include "../include/geometry_multi_cube.h"
 
 // Utility C-files
 #include "read_par_file.c"
@@ -201,16 +201,9 @@ You may redistribute and/or modify it without any restrictions, as long as the c
 static struct pumas_physics * physics = NULL;
 static struct pumas_context * context = NULL;
 
-static struct rubiks_cube *inner_cube;
-static struct rubiks_cube *outer_cube;
-
-static _Bool double_cube_flag;
-static int n_materials;
+static struct run_params params;
+static struct rubiks_cube **models;
 static struct pumas_medium *media;
-
-static char output_dir[256];
-static char inner_model_filename[256];
-static char outer_model_filename[256];
 
 // Estimated location of detector in (GDA94, MGA54, AHD)
 static double det_position[3];
@@ -220,10 +213,6 @@ static double PRIMARY_ALTITUDE;
 
 // Define struct for storing initial and final states of a muon
 struct pumas_states{
-    // Model data used for inner cube
-    const char *inner_model_filename;
-    // Model data used for outer cube
-    const char *outer_model_filename;
     // Number of particles
     size_t n_particles;
     // Lower azimuth limit
@@ -345,8 +334,10 @@ void destroy_structs(){
     free(media);
     pumas_context_destroy(&context);
     pumas_physics_destroy(&physics);
-    rubiks_cube_destroy(&inner_cube);
-    rubiks_cube_destroy(&outer_cube);
+    for (int i=0; i<params.n_models; i++) {
+        rubiks_cube_destroy(&models[i]);
+    }
+    free(models);
 }
 
 /* Gracefully exit to the OS */
@@ -373,76 +364,60 @@ enum rubiks_cube_return get_cube(struct pumas_state *state, int *rock_id_ptr,
     const int sgn = (context->mode.direction == PUMAS_MODE_FORWARD) ? 1 : -1;
     enum rubiks_cube_return status;
 
-    // Search inner cube model first
-    status = rubiks_cube_find_cube(state->position[0], state->position[1],
-                                   state->position[2], state->direction[0]*sgn,
-                                   state->direction[1]*sgn, state->direction[2]*sgn,
-                                   inner_cube, NULL, NULL, NULL, density_ptr, rock_id_ptr,
-                                   step_ptr);
+    // Search all models in order
+    int i;
+    for (i=0; i<params.n_models; i++) {
+        status = rubiks_cube_find_cube(state->position[0], state->position[1],
+                                       state->position[2], state->direction[0]*sgn,
+                                       state->direction[1]*sgn, state->direction[2]*sgn,
+                                       models[i], NULL, NULL, NULL, density_ptr, rock_id_ptr,
+                                       step_ptr);
 
-    // Check if cube was found within inner cube model
-    if (status == RUBIKS_CUBE_RETURN_CUBE_NOT_FOUND) {
-        // If not, search outer cube model instead if it is different from the inner cube model
-        if (double_cube_flag) {
-            status = rubiks_cube_find_cube(state->position[0], state->position[1],
-                                           state->position[2], state->direction[0]*sgn,
-                                           state->direction[1]*sgn, state->direction[2]*sgn,
-                                           outer_cube, NULL, NULL, NULL, density_ptr, rock_id_ptr,
-                                           step_ptr);
-        }
-
-        // Check if cube was found within outer cube model
-        if (status == RUBIKS_CUBE_RETURN_CUBE_NOT_FOUND) {
-            // If not, check the outer ground model
-            const double z = state->position[2];
-            double ztop;
-
-            // Check which layer particle is at right now
-            if (z < OUTER_GROUND_LEVEL) {
-                // Below ground level
-                if (rock_id_ptr != NULL)
-                    *rock_id_ptr = 2; /* XXX Use Warrak rock as outer material? */
-                if (density_ptr != NULL)
-                    *density_ptr = OUTER_GROUND_DENSITY;
-                ztop = OUTER_GROUND_LEVEL;
-            }
-            else if (z < PRIMARY_ALTITUDE) {
-                // Above ground level, below maximum altitude
-                if (rock_id_ptr != NULL)
-                    *rock_id_ptr = 1; /* XXX Is this air? */
-                if (density_ptr != NULL)
-                    *density_ptr = 0.; /* Use air default density */
-                ztop = PRIMARY_ALTITUDE;
-            } 
-            else {
-                // Above maximum altitude
-                return(RUBIKS_CUBE_RETURN_CUBE_NOT_FOUND);
-            }
-
-            // If step was requested, calculate it
-            if (step_ptr != NULL) {
-                double uz = state->direction[2]*sgn;
-                if (uz < 1E-03){
-                    uz = 1E-03;
-                }
-                const double step = (ztop - z) / uz;
-                const double step_min = 1E-06;
-                *step_ptr = (step > step_min) ? step : step_min;
-            }
-
-            // Return success
-            return(RUBIKS_CUBE_RETURN_SUCCESS);
-        }
-
-        else {
-            // If so, return the outer cube model status
+        // If cube was found in this model, return status
+        if (status != RUBIKS_CUBE_RETURN_CUBE_NOT_FOUND) {
             return(status);
         }
     }
-    else {
-        // If so, return the inner cube model status
-        return(status);
+
+    // If cube was not found in any of the models, search the outer layers instead
+    const double z = state->position[2];
+    double ztop;
+
+    // Check which layer particle is at right now
+    if (z < OUTER_GROUND_LEVEL) {
+        // Below ground level
+        if (rock_id_ptr != NULL)
+            *rock_id_ptr = 2; /* XXX Use Warrak rock as outer material? */
+        if (density_ptr != NULL)
+            *density_ptr = OUTER_GROUND_DENSITY;
+        ztop = OUTER_GROUND_LEVEL;
     }
+    else if (z < PRIMARY_ALTITUDE) {
+        // Above ground level, below maximum altitude
+        if (rock_id_ptr != NULL)
+            *rock_id_ptr = 1; /* XXX Is this air? */
+        if (density_ptr != NULL)
+            *density_ptr = 0.; /* Use air default density */
+        ztop = PRIMARY_ALTITUDE;
+    } 
+    else {
+        // Above maximum altitude
+        return(RUBIKS_CUBE_RETURN_CUBE_NOT_FOUND);
+    }
+
+    // If step was requested, calculate it
+    if (step_ptr != NULL) {
+        double uz = state->direction[2]*sgn;
+        if (uz < 1E-03){
+            uz = 1E-03;
+        }
+        const double step = (ztop - z) / uz;
+        const double step_min = 1E-06;
+        *step_ptr = (step > step_min) ? step : step_min;
+    }
+
+    // Return success
+    return(RUBIKS_CUBE_RETURN_SUCCESS);
 }
 
 // Declare locals function
@@ -497,59 +472,52 @@ enum pumas_step get_medium(struct pumas_context *context, struct pumas_state *st
 // This function initializes the PUMAS physics and rubiks_cube cube
 void init_geometry(const char *input_par){
     // Read input parameter file
-    struct run_params params;
     read_par_file(input_par, &params);
 
     // Load in physics
     pumas_physics_create(&physics, PUMAS_PARTICLE_MUON, params.MDF_filename,
                          params.DEDX_dir, NULL);
 
-    // Obtain model files
-    strcpy(output_dir, params.output_dir);
-    mkdir(output_dir, 0755);
-    strcpy(inner_model_filename, params.inner_model_filename);
-    strcpy(outer_model_filename, params.outer_model_filename);
+    // Create output directory
+    mkdir(params.output_dir, 0755);
+
+    // Allocate memory for models
+    models = (struct rubiks_cube **)malloc(sizeof(struct rubiks_cube *)*params.n_models);
+    if (models == NULL) {
+        perror("Memory cannot be allocated for Rubik's cube models!!!\n");
+        exit_gracefully(EXIT_FAILURE);
+    }
+
+    // Read in models
+    int i;
+    for (i=0; i<params.n_models; i++) {
+        rubiks_cube_create(&models[i], params.model_filenames[i]);
+    }
 
     // Obtain detector position
     det_position[0] = params.det_position[0];
     det_position[1] = params.det_position[1];
     det_position[2] = params.det_position[2];
 
-    // Obtain number of materials defined
-    n_materials = params.n_materials;
-
     // Allocate memory for media
-    media = (struct pumas_medium *)malloc(sizeof(struct pumas_medium)*n_materials);
+    media = (struct pumas_medium *)malloc(sizeof(struct pumas_medium)*params.n_materials);
     if (media == NULL) {
         perror("Memory cannot be allocated for geometry media!!!\n");
         exit_gracefully(EXIT_FAILURE);
     }
 
     // Map PUMAS materials indices
-    int i;
-    for (i=0; i<n_materials; i++) {
+    for (i=0; i<params.n_materials; i++) {
         pumas_physics_material_index(physics, params.material_names[i], &media[i].material);
     }
 
     // Set all locals to get_locals
-    for (int i=0; i<n_materials; i++) {
+    for (int i=0; i<params.n_materials; i++) {
         media[i].locals = &get_locals;
     }
 
-    // Create rubiks_cube objects
-    rubiks_cube_create(&inner_cube, inner_model_filename);
-
-    // Only load outer model if it is different from the inner model
-    if (strncasecmp(inner_model_filename, outer_model_filename, strlen(inner_model_filename)) != 0){
-        double_cube_flag = true;
-        rubiks_cube_create(&outer_cube, outer_model_filename);
-    }
-    else {
-        double_cube_flag = false;
-    }
-
     // Determine primary altitude
-    rubiks_cube_primary_altitude(outer_cube, &PRIMARY_ALTITUDE);
+    rubiks_cube_primary_altitude(models[params.n_models-1], &PRIMARY_ALTITUDE);
 
     // Destroy params
     run_params_destroy(&params);
@@ -626,8 +594,12 @@ static int write_states_to_file(struct pumas_states *states, const char *filenam
         file_id = H5Fcreate(filename, H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
 
         // If it did not exist yet, store some additional attributes
-        CREATE_STRING_ATTRIBUTE(file_id, "inner_model_filename", states->inner_model_filename);
-        CREATE_STRING_ATTRIBUTE(file_id, "outer_model_filename", states->outer_model_filename);
+        int i;
+        for (i=0; i<params.n_models; i++) {
+            char model_filename_key[80];
+            sprintf(model_filename_key, "cube_model_%i", i);
+            CREATE_STRING_ATTRIBUTE(file_id, model_filename_key, params.model_filenames[i]);
+        }
         CREATE_SINGLE_ATTRIBUTE(file_id, "n_particles", states->n_particles, H5T_NATIVE_ULONG);
         CREATE_SINGLE_ATTRIBUTE(file_id, "elevation", states->elevation, H5T_NATIVE_DOUBLE);
         CREATE_SINGLE_ATTRIBUTE(file_id, "solid_angle", states->solid_angle, H5T_NATIVE_DOUBLE);
@@ -798,7 +770,7 @@ void init_structs(const char *input_par){
     context->event |= PUMAS_EVENT_LIMIT_ENERGY;
 }
 
-void run_double_cube(int n_times, double azimuth, double elevation, double logE_min, double logE_max, int verbose){
+void run_multi_cube(int n_times, double azimuth, double elevation, double logE_min, double logE_max, int verbose){
     // Initialize variables for Monte Carlo
     const double deg = M_PI/180;
     const double solid_angle = deg*fabs(sin((elevation+1)*deg)-(sin(elevation*deg))); /* The angular bin solid angle */
@@ -826,8 +798,6 @@ void run_double_cube(int n_times, double azimuth, double elevation, double logE_
     states->azimuth = azimuth;
     states->elevation = elevation;
     states->solid_angle = solid_angle;
-    states->inner_model_filename = inner_model_filename;
-    states->outer_model_filename = outer_model_filename;
     states->n_particles = n_times;
     states->det_position[0] = det_position[0];
     states->det_position[1] = det_position[1];
@@ -983,7 +953,7 @@ void run_double_cube(int n_times, double azimuth, double elevation, double logE_
     states->avg_flux = w;
     states->avg_flux_err = sigma;
     char HDF5_filename[80];
-    sprintf(HDF5_filename, "%s/double_El%02g.hdf5", output_dir, elevation);
+    sprintf(HDF5_filename, "%s/multi_El%02g.hdf5", params.output_dir, elevation);
     write_states_to_file(states, HDF5_filename);
     clock_gettime(CLOCK_MONOTONIC_RAW, &time_2);
 
@@ -1019,7 +989,7 @@ int main(int narg, char * argv[]){
     init_structs(input_par);
 
     // Call the model
-    run_double_cube(n_times, azimuth, elevation, energy_min, energy_max, 1);
+    run_multi_cube(n_times, azimuth, elevation, energy_min, energy_max, 1);
 
     /* Exit to the OS */
     exit_gracefully(EXIT_SUCCESS);

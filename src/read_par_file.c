@@ -20,10 +20,10 @@ enum data_types {
 struct run_params{
     // Path to directory where output must be written to
     char output_dir[MAX_PAR_LEN];
-    // Path to inner Rubik's Cube model data
-    char inner_model_filename[MAX_PAR_LEN];
-    // Path to outer Rubik's Cube model data
-    char outer_model_filename[MAX_PAR_LEN];
+    // Number of Rubik's cube models to use
+    int n_models;
+    // Model filenames
+    char **model_filenames;
     // Detector position
     double det_position[3];
     // MDF filename
@@ -57,15 +57,10 @@ int read_par_file(const char *filename, struct run_params *params){
     par_ptrs[n_par] = params->output_dir;
     par_types[n_par++] = STRING;
 
-    // INNER_MODEL_FILENAME
-    strncpy(par_keys[n_par], "inner_model_filename", MAX_PAR_LEN);
-    par_ptrs[n_par] = params->inner_model_filename;
-    par_types[n_par++] = STRING;
-
-    // OUTER_MODEL_FILENAME
-    strncpy(par_keys[n_par], "outer_model_filename", MAX_PAR_LEN);
-    par_ptrs[n_par] = params->outer_model_filename;
-    par_types[n_par++] = STRING;
+    // N_MODELS
+    strncpy(par_keys[n_par], "n_models", MAX_PAR_LEN);
+    par_ptrs[n_par] = &(params->n_models);
+    par_types[n_par++] = INT;
 
     // DET_POSITION
     strncpy(par_keys[n_par], "det_position_x", MAX_PAR_LEN);
@@ -118,13 +113,19 @@ int read_par_file(const char *filename, struct run_params *params){
         }
 
         // Check which parameter key is on this line
-        int i, j = -1, k = -1;
+        int i, j = -1, k = -1, m = -1;
         for (i=0; i<n_par; i++) {
             // Check if this line's key matches any of the normal keys
             if (strncasecmp(key_buf, par_keys[i], MAX_PAR_LEN) == 0) {
                 // If the value of par_keys matches the key, then this is the correct index
                 j = i;
                 par_keys[i][0] = 0;
+                break;
+            }
+
+            // If not, check if it is a model name
+            if (strncasecmp(key_buf, "cube_model_", 10) == 0) {
+                m = atoi(&key_buf[10]);
                 break;
             }
 
@@ -150,14 +151,29 @@ int read_par_file(const char *filename, struct run_params *params){
                     break;
             }
         }
+        else if (m >= 0) {
+            // Write model name to the proper location
+            strncpy(params->model_filenames[m], value_buf, MAX_PAR_LEN-1);
+        }
         else if (k >= 0) {
             // Write material name to the proper location
             strncpy(params->material_names[k], value_buf, MAX_PAR_LEN-1);
         }
         else {
-            // If neither applies, this value is not allowed
+            // If none applies, this value is not allowed
             fprintf(stderr, "ERROR: Parameter key %s is invalid!!!\n", key_buf);
             return(EXIT_FAILURE);
+        }
+
+        // Check if this was the 'n_models' key
+        if (strncasecmp(key_buf, "n_models", MAX_PAR_LEN) == 0) {
+            // Allocate memory for model_names
+            params->model_filenames = (char **)malloc(sizeof(char *)*params->n_models);
+
+            // Loop over all model names and assign memory
+            for (i=0; i<params->n_models; i++) {
+                params->model_filenames[i] = (char *)malloc(MAX_PAR_LEN);
+            }
         }
 
         // Check if this was the 'n_materials' key

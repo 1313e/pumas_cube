@@ -24,6 +24,10 @@ dist = Distribution()
 dist.parse_config_files()
 libs_cfg = {key: val[1] for key, val in dist.get_option_dict('libs').items()}
 
+# Obtain absolute paths to cube_dir and pumas_dir
+cube_dir = path.abspath(libs_cfg['cube_dir'])
+pumas_dir = path.abspath(libs_cfg['pumas_dir'])
+
 # Get the requirements list
 with open('requirements.txt', 'r') as f:
     requirements = f.read().splitlines()
@@ -42,19 +46,19 @@ setup(name="pumas_cube",
       author_email='evandervelden@swin.edu.au',
       ext_modules=cythonize(
           [Extension(
-              name='pumas_cube.cgeometry_double_cube',
-              sources=["pumas_cube/cgeometry_double_cube.pyx"],
+              name='pumas_cube.cgeometry_multi_cube',
+              sources=["pumas_cube/cgeometry_multi_cube.pyx"],
               libraries=['hdf5', 'cube', 'pumas'],
               extra_compile_args=["-O3", "-fPIC"],
               library_dirs=[
-                  path.join(libs_cfg['cube_dir'], "lib"),
-                  path.join(libs_cfg['pumas_dir'], "lib")],
+                  path.join(cube_dir, "lib"),
+                  path.join(pumas_dir, "lib")],
               runtime_library_dirs=[
-                  path.join(libs_cfg['cube_dir'], "lib"),
-                  path.join(libs_cfg['pumas_dir'], "lib")],
+                  path.join(cube_dir, "lib"),
+                  path.join(pumas_dir, "lib")],
               include_dirs=[
-                  path.join(libs_cfg['cube_dir'], "include"),
-                  path.join(libs_cfg['pumas_dir'], "include")],
+                  path.join(cube_dir, "include"),
+                  path.join(pumas_dir, "include")],
               language='c',
               )]),
       python_requires='>=3.6, <4',

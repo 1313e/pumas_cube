@@ -4,13 +4,13 @@
 
 
 # %% IMPORTS
-from pumas_cube cimport geometry_double_cube as cdouble_cube
+from pumas_cube cimport geometry_multi_cube as cmulti_cube
 
 
 # %% DEFINITIONS
 def init_structs(const char *input_par):
     """
-    Initialize all structs required for running the double Rubik's cube model.
+    Initialize all structs required for running the multi Rubik's cube model.
 
     This function MUST be called before any other function can be used.
 
@@ -21,13 +21,13 @@ def init_structs(const char *input_par):
 
     """
 
-    cdouble_cube.init_structs(input_par)
+    cmulti_cube.init_structs(input_par)
 
 
-def run_double_cube(int N, double azimuth, double elevation, double logE_min,
+def run_multi_cube(int N, double azimuth, double elevation, double logE_min,
                     double logE_max, int verbose):
     """
-    Run the double Rubik's cube with the provided parameters.
+    Run the multi Rubik's cube with the provided parameters.
 
     Parameters
     ----------
@@ -52,8 +52,8 @@ def run_double_cube(int N, double azimuth, double elevation, double logE_min,
     """
 
     # Call model
-    cdouble_cube.run_double_cube(N, azimuth, elevation, logE_min, logE_max,
-                                 verbose)
+    cmulti_cube.run_multi_cube(N, azimuth, elevation, logE_min, logE_max,
+                               verbose)
 
 
 def destroy_structs():
@@ -65,4 +65,4 @@ def destroy_structs():
 
     """
 
-    cdouble_cube.destroy_structs()
+    cmulti_cube.destroy_structs()
