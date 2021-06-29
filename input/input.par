@@ -1,10 +1,10 @@
 % Output directory
-output_dir                  data
+output_dir                  data                            % The directory where all output HDF5-files are placed
 
 % Rubik's Cube model files
-n_models                    2                               % This value MUST appear before the specifications of the models below
-cube_model_0                SGM_local_model.txt
-cube_model_1                SGM_regional_model.txt
+n_models                    2                               % NOTE: This value MUST appear before the specifications of the models below
+cube_model_0                SGM_local_model.txt             % First Rubik's Cube model to check for muon location
+cube_model_1                SGM_regional_model.txt          % Rubik's Cube model to check for muon location if not contained within cube_model_0
 
 % Detector position
 det_position_x              658932
@@ -12,12 +12,12 @@ det_position_y              5898244
 det_position_z              -717
 
 % Materials
-MDF_filename                materials/materials.xml
-DEDX_dir                    materials
-n_materials                 5                               % This value MUST appear before the specifications of the materials below
-material_0                  Air
-material_1                  SgmWarrak
-material_2                  SgmBasalt
+MDF_filename                materials/materials.xml         % Path to the Materials Description Fileto use in PUMAS
+DEDX_dir                    materials                       % Path to the directory that contains all energy loss tables
+n_materials                 5                               % NOTE: This value MUST appear before the specifications of the materials below
+material_0                  Air                             % Name of material (as defined in the MDF) with rock_id 0 in the Rubik's Cube model
+material_1                  SgmWarrak                       % Name of material (as defined in the MDF) with rock_id 1 in the Rubik's Cube model
+material_2                  SgmBasalt                       % Etc.
 material_3                  SgmStope
 material_4                  SgmTunnel
 
