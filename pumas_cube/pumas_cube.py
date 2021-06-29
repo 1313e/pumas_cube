@@ -117,6 +117,7 @@ def read_cube_HDF5(output_dir, az_rng, elevation, logE_rng, *args):
     args : positional arguments
         The names of all datasets that must be read from the HDF5-file.
         If `args` is empty, all datasets are read.
+        See :obj:`~dset_unit_dct` for all dataset names.
 
     Returns
     -------
@@ -126,6 +127,10 @@ def read_cube_HDF5(output_dir, az_rng, elevation, logE_rng, *args):
         Groups themselves are stored as dicts as well.
 
     """
+
+    # Check if MPI worker and return if so
+    if is_worker:
+        return
 
     # Obtain the name of the HDF5 file associated with this elevation
     filename = HDF5_file.format(output_dir, elevation)
@@ -331,7 +336,7 @@ def make_hist(dset, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     ----------
     dset : str
         The dataset for which a histogram must be made.
-        See :obj:`~dset_unit_dct` for all valid values.
+        See :obj:`~dset_unit_dct` for all valid dataset names.
     output_dir : str
         The path towards the directory where the output HDF5-files are stored.
     az_rng : int, 2-tuple of int or None
@@ -356,6 +361,10 @@ def make_hist(dset, output_dir, az_rng, el_rng, logE_rng, savefig=None,
         The size of the figure in inches.
 
     """
+
+    # Check if MPI worker and return if so
+    if is_worker:
+        return
 
     # Set required elevations
     if isinstance(el_rng, int):
@@ -473,6 +482,10 @@ def make_scatter(output_dir, az_rng, el_rng, logE_rng, savefig=None,
         The size of the figure in inches.
 
     """
+
+    # Check if MPI worker and return if so
+    if is_worker:
+        return
 
     # Set required elevations
     if isinstance(el_rng, int):
@@ -598,6 +611,10 @@ def export_to_txt(filename, output_dir, az_rng, el_rng, logE_rng):
         If *None*, all energies in the range `[-3, 4]` are read in.
 
     """
+
+    # Check if MPI worker and return if so
+    if is_worker:
+        return
 
     # Obtain the absolute path to the provided filename
     filename = path.abspath(filename)
