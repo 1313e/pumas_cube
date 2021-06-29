@@ -21,6 +21,7 @@ from mpi4pyd import MPI
 import numpy as np
 
 # Cython imports
+from pumas_cube import __version__ as __version__
 import pumas_cube.cgeometry_multi_cube as ccube
 
 # All declaration
@@ -320,6 +321,10 @@ def run_multi_cube(input_par, N=10000, az_rng=(0, 360), el_rng=(40, 90),
         # Loop over all assigned AzLogE and execute
         for azloge in az_logE:
             ccube.run_multi_cube(N, azloge[0], e, *azloge[1], 0)
+
+        # Open the HDF5-file to add the version of PUMAS_Cube as an attribute
+        with h5py.File(filename, 'r+') as file:
+            file.attrs['pumas_cube_version'] = __version__
 
     # Exit
     ccube.destroy_structs()
