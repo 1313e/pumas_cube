@@ -65,8 +65,11 @@ For example, if we assume we executed the script above; stored the data in a fol
 .. code:: python
 
     # Read data
-    data = pumas_cube.read_cube_HDF5('test', None, 15, None,
-                                     'position_xf', 'position_yf', 'position_zf')
+    data = pumas_cube.read_cube_HDF5('position_xf', 'position_yf', 'position_zf',
+                                      output_dir='test',
+                                      az_rng=None,
+                                      elevation=15,
+                                      logE_rng=None)
 
 Here, we specified that we want to read all azimuth angles and logarithmic energy bins that are present in the output HDF5-files in the directory ``test`` for an elevation of :math:`[15, 16)`.
 What we want from these simulations is the end position of every muon, which is given by ``'position_xf', 'position_yf', 'position_zf'``.

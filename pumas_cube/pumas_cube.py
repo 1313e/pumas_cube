@@ -94,7 +94,7 @@ dset_unit_dct = {
 
 # %% FUNCTION DEFINITIONS
 # Function that reads in an HDF5-file created with 'multi_geometry_cube.c'
-def read_cube_HDF5(output_dir, az_rng, elevation, logE_rng, *args):
+def read_cube_HDF5(*args, output_dir, az_rng, elevation, logE_rng):
     """
     Reads in the HDF5-file created with the provided variables and returns a
     dict containing all attributes of this file plus all datasets specified in
@@ -229,7 +229,7 @@ def read_cube_HDF5(output_dir, az_rng, elevation, logE_rng, *args):
 
 
 # Function that runs the multi cube model
-def run_multi_cube(input_par, N=10000, az_rng=(0, 360), el_rng=(40, 90),
+def run_multi_cube(input_par, *, N=10000, az_rng=(0, 360), el_rng=(40, 90),
                    logE_rng=(-3, 4)):
     """
     Run the multi Rubik's cube model in MPI.
@@ -331,7 +331,7 @@ def run_multi_cube(input_par, N=10000, az_rng=(0, 360), el_rng=(40, 90),
 
 
 # This function creates a figure showing the end positions of all muons
-def make_hist(dset, output_dir, az_rng, el_rng, logE_rng, savefig=None,
+def make_hist(dset, *, output_dir, az_rng, el_rng, logE_rng, savefig=None,
               nbins=100, figsize=(6.4, 4.8)):
     """
     Creates a histogram plot showing the `dset` values of all muons simulated
@@ -395,7 +395,11 @@ def make_hist(dset, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     for elevation in el_all:
         # Read in this elevation
         dct = read_cube_HDF5(
-            output_dir, az_rng, elevation, logE_rng, dset)
+            dset,
+            output_dir=output_dir,
+            az_rng=az_rng,
+            elevation=elevation,
+            logE_rng=logE_rng)
 
         # Obtain attrs if not obtained already
         if attrs is None:
@@ -457,7 +461,7 @@ def make_hist(dset, output_dir, az_rng, el_rng, logE_rng, savefig=None,
 
 
 # This function creates a figure showing the end positions of all muons
-def make_scatter(output_dir, az_rng, el_rng, logE_rng, savefig=None,
+def make_scatter(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
                  figsize=(6.4, 4.8)):
     """
     Creates a scatter plot showing the final positions of all muons simulated
@@ -518,8 +522,11 @@ def make_scatter(output_dir, az_rng, el_rng, logE_rng, savefig=None,
     for elevation in el_all:
         # Read in this elevation
         dct = read_cube_HDF5(
-            output_dir, az_rng, elevation, logE_rng,
-            'position_xf', 'position_yf', 'position_zf')
+            'position_xf', 'position_yf', 'position_zf',
+            output_dir=output_dir,
+            az_rng=az_rng,
+            elevation=elevation,
+            logE_rng=logE_rng)
 
         # Obtain attrs if not obtained already
         if attrs is None:
@@ -593,7 +600,7 @@ def make_scatter(output_dir, az_rng, el_rng, logE_rng, savefig=None,
 
 
 # This function reads in data and exports it to txt
-def export_to_txt(filename, output_dir, az_rng, el_rng, logE_rng):
+def export_to_txt(filename, *, output_dir, az_rng, el_rng, logE_rng):
     """
     Exports the data associated with the given arguments in a text file
     `filename`.
@@ -638,7 +645,11 @@ def export_to_txt(filename, output_dir, az_rng, el_rng, logE_rng):
     for elevation in el_all:
         # Read in this elevation
         data_dct[elevation] = read_cube_HDF5(
-            output_dir, az_rng, elevation, logE_rng, *dsets_export)
+            *dsets_export,
+            output_dir=output_dir,
+            az_rng=az_rng,
+            elevation=elevation,
+            logE_rng=logE_rng)
 
         # Obtain N if not obtained already
         if N is None:
