@@ -4,7 +4,7 @@ LIBS := -Llib -lhdf5 -lcube -lpumas -lm
 
 .PHONY: build clean
 
-build: lib build-cython
+build: build-cython
 
 lib: lib/libgeometry_multi_cube.so
 	@rm -f *.o
