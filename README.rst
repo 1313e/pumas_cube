@@ -21,11 +21,11 @@ Usage
 Running the models
 ++++++++++++++++++
 After installing the package, it can be imported with ``import pumas_cube`` in any Python script.
-This gives one access to the ``run_multi_cube`` function, which runs the double Rubik's cube model together with PUMAS, and the various utility functions used for analyzing the data that this process produces.
+This gives one access to the ``run_multi_cube`` function, which runs the multi Rubik's cube model together with PUMAS, and the various utility functions used for analyzing the data that this process produces.
 
 Using the ``run_multi_cube`` function is pretty straight-forward.
 First, we need to prepare an input parameters file, which can be found in `input <./input/input.par>`_.
-This file takes several parameters, including where all the output HDF5-files should be stored; what Rubik's cube model files should be used; what the position of the muon detector is; where the MDF file is with all required materials; and what ``rock_id`` in the Rubik's cube files corresponds to what material.
+This file takes several parameters, including where all the output HDF5-files should be stored; what Rubik's cube model files should be used (which have to be created by the `Rubik's cube model`_ library); what the position of the muon detector is; where the MDF file is with all required materials; and what ``rock_id`` in the Rubik's cube files corresponds to what material.
 
 After making sure that the input parameters file has the correct values in it, one can provide it to the ``run_multi_cube`` function together with a few parameters stating what the arrival directions and energies are of the muons we want to explore.
 For example:
@@ -35,14 +35,14 @@ For example:
     # Import pumas_cube
     import pumas_cube
 
-    # Run double cube model
+    # Run multi cube model
     pumas_cube.run_multi_cube('input.par',
                                N=100,
                                az_rng=(230, 235),
                                el_rng=(10, 20),
                                logE_rng=(-1.0, 1.5))
 
-Here, we ran the double Rubik's cube model with PUMAS using the ``input.par`` parameters file, and a series of input parameters.
+Here, we ran the multi Rubik's cube model with PUMAS using the ``input.par`` parameters file, and a series of input parameters.
 Every simulation uses a resolution of one square degree and a logarithmic energy bin-size of :math:`0.1` (although I am planning on allowing for this particular value to be changeable by the user).
 That means that in this particular case, we are asking for :math:`5*10*25=1,250` different simulations (:math:`5` azimuth angles; :math:`10` elevation angles; :math:`25` logarithmic energy bins).
 Therefore, given that we also asked for :math:`100` muons PER simulation, a total of :math:`125,000` muons will be simulated with this function call.

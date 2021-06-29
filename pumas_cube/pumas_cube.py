@@ -49,7 +49,7 @@ dsets_export = [
 N_dsets = len(dsets_export)+4
 
 # Define dict of units for all datasets
-unit_dct = {
+attr_unit_dct = {
     'det_position': r'm',
     'elevation': r'\degree',
     'energy_threshold': r'GeV',
@@ -62,7 +62,9 @@ unit_dct = {
     'energy_min': r'GeV',
     'logE_max': r'GeV dex',
     'logE_min': r'GeV dex',
-    'random_seed': '',
+    'random_seed': ''}
+
+dset_unit_dct = {
     'azimuth_i': r'\degree',
     'charge': '',
     'decayed': '',
@@ -222,7 +224,7 @@ def read_cube_HDF5(output_dir, az_rng, elevation, logE_rng, *args):
 
 # Function that runs the multi cube model
 def run_multi_cube(input_par, N=10000, az_rng=(0, 360), el_rng=(40, 90),
-                    logE_rng=(-3, 4)):
+                   logE_rng=(-3, 4)):
     """
     Run the multi Rubik's cube model in MPI.
 
@@ -329,6 +331,7 @@ def make_hist(dset, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     ----------
     dset : str
         The dataset for which a histogram must be made.
+        See :obj:`~dset_unit_dct` for all valid values.
     output_dir : str
         The path towards the directory where the output HDF5-files are stored.
     az_rng : int, 2-tuple of int or None
@@ -345,7 +348,7 @@ def make_hist(dset, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     Optional
     --------
     savefig : str or None. Default: None
-        If not *None*, the path where the scatter plot must be saved to.
+        If not *None*, the filepath where the scatter plot must be saved to.
         Else, the plot will simply be shown.
     nbins : int. Default: 100
         The number of bins to use in the histogram.
@@ -426,7 +429,7 @@ def make_hist(dset, output_dir, az_rng, el_rng, logE_rng, savefig=None,
            ))
 
     # Labels
-    ax.set_xlabel(r"%s [$\mathrm{%s}$]" % (dset, unit_dct[dset]))
+    ax.set_xlabel(r"%s [$\mathrm{%s}$]" % (dset, dset_unit_dct[dset]))
     ax.set_ylabel("Count")
 
     # If savefig is not None, save the figure
@@ -464,7 +467,7 @@ def make_scatter(output_dir, az_rng, el_rng, logE_rng, savefig=None,
     Optional
     --------
     savefig : str or None. Default: None
-        If not *None*, the path where the scatter plot must be saved to.
+        If not *None*, the filepath where the scatter plot must be saved to.
         Else, the plot will simply be shown.
     figsize : tuple of float. Default: (6.4, 4.8)
         The size of the figure in inches.
