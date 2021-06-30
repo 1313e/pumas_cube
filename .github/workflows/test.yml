@@ -1,0 +1,102 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Test
+
+on: [push, pull_request]
+
+jobs:
+  build-ubuntu:
+    name: ${{ matrix.os }} ${{ matrix.architecture }}, Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    env:
+      CPATH: "/usr/share/miniconda/include:$CPATH"
+      LIBRARY_PATH: "/usr/share/miniconda/lib:$LIBRARY_PATH"
+      LD_LIBRARY_PATH: "/usr/share/miniconda/lib:$LD_LIBRARY_PATH"
+    strategy:
+      matrix:
+        architecture: [x64]
+        os: [ubuntu-latest]
+        python-version: [3.6, 3.7, 3.8]
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }} ${{ matrix.architecture }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+        architecture:  ${{ matrix.architecture }}
+    - name: Build Rubiks Cube library
+      run: |
+        cd ..
+        git clone https://github.com/1313e/rubiks_cube
+        cd rubiks_cube
+        make
+    - name: Build PUMAS library
+      run: |
+        cd ..
+        git clone https://github.com/niess/pumas -b dev
+        cd pumas
+        make
+    - name: Build HDF5 library
+      run: |
+        sudo conda install hdf5
+    - name: Install pre-installation dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        pip install -r requirements_install.txt
+    - name: Install package
+      run: |
+        pip install -r requirements_dev.txt
+    - name: Test package
+      run: |
+        pytest
+
+#  build-macos:
+#    name: ${{ matrix.os }} ${{ matrix.architecture }}, Python ${{ matrix.python-version }}
+#    runs-on: ${{ matrix.os }}
+#    env:
+#      CPATH: "/usr/local/miniconda/include:$CPATH"
+#      LIBRARY_PATH: "/usr/local/miniconda/lib:$LIBRARY_PATH"
+#      LD_LIBRARY_PATH: "/usr/local/miniconda/lib:$LD_LIBRARY_PATH"
+#    strategy:
+#      matrix:
+#        architecture: [x64]
+#        os: [macos-latest]
+#        python-version: [3.6, 3.7, 3.8, 3.9]
+#      fail-fast: false
+#
+#    steps:
+#    - uses: actions/checkout@v2
+#    - name: Set up Python ${{ matrix.python-version }} ${{ matrix.architecture }}
+#      uses: actions/setup-python@v2
+#      with:
+#        python-version: ${{ matrix.python-version }}
+#        architecture:  ${{ matrix.architecture }}
+#    - name: Build Rubiks Cube library
+#      run: |
+#        cd ..
+#        git clone https://github.com/1313e/rubiks_cube
+#        cd rubiks_cube
+#        make
+#    - name: Build PUMAS library
+#      run: |
+#        cd ..
+#        git clone https://github.com/niess/pumas -b dev
+#        cd pumas
+#        make
+#    - name: Build HDF5 library
+#      run: |
+#        sudo conda install hdf5
+#    - name: Install dependencies
+#      run: |
+#        python -m pip install --upgrade pip setuptools wheel
+#        pip install -r requirements_dev.txt
+#    - name: Install package
+#      run: |
+#        make
+#        otool -L /Users/runner/work/pumas_cube/pumas_cube/pumas_cube/cgeometry_multi_cube.cpython-36m-darwin.so
+#    - name: Test package
+#      run: |
+#        pytest

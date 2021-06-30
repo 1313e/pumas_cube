@@ -684,7 +684,7 @@ def export_to_txt(filename, *, output_dir, az_rng, el_rng, logE_rng):
 
     # Create header
     header = ("azimuth elevation logE_min logE_max {}").format(
-              ' '.join(dsets_export))
+        ' '.join(dsets_export))
 
     # Create format
     fmt = "%i %i %+4.1f %+4.1f {}".format(' '.join(["%#10.10g"]*(N_dsets-4)))
