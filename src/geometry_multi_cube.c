@@ -332,6 +332,7 @@ void destroy_pumas_states(struct pumas_states **states_ptr){
 
 void destroy_structs(){
     free(media);
+    run_params_destroy(&params);
     pumas_context_destroy(&context);
     pumas_physics_destroy(&physics);
     for (int i=0; i<params.n_models; i++) {
@@ -518,9 +519,6 @@ void init_geometry(const char *input_par){
 
     // Determine primary altitude
     rubiks_cube_primary_altitude(models[params.n_models-1], &PRIMARY_ALTITUDE);
-
-    // Destroy params
-    run_params_destroy(&params);
 }
 
 // Function that initializes the pumas_states struct
@@ -755,9 +753,6 @@ void init_structs(const char *input_par){
     init_geometry(input_par);
 
     // Create new simulation context
-    pumas_context_create(&context, physics, 0);
-
-    /* Create a new PUMAS simulation context */
     pumas_context_create(&context, physics, 0);
 
     /* Configure the context for a backward transport */

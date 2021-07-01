@@ -1,6 +1,6 @@
 PUMAS Cube
 ==========
-This repo contains the scripts that I wrote during my ADACS internship in 2021 for usage with my `Rubik's cube model`_ library.
+*PUMAS Cube* is a Python library that I wrote during my ADACS internship in 2021 for usage with my `Rubik's cube model`_ library.
 It provides the C and accompanied Python scripts used for the simulating muons in the model of the Stawell gold mine in Victoria, Australia using the `PUMAS muon transport engine`_.
 
 .. _Rubik's cube model: https://github.com/1313e/rubiks_cube
@@ -8,11 +8,11 @@ It provides the C and accompanied Python scripts used for the simulating muons i
 
 Installation
 ------------
-Before installation, one has to make sure that both the `Rubik's cube model`_ and `PUMAS muon transport engine`_ libraries are correctly installed.
+Before installation, one has to make sure that both the `Rubik's cube model`_ and `PUMAS muon transport engine`_ libraries are correctly built as shared libraries.
 The paths towards these libraries must be provided in the ``setup.cfg`` file in the ``[libs]`` section.
 Additionally, this library requires the HDF5 library as well.
-After that, this library can be easily installed with ``$ make`` or ``$ pip install .`` in the root directory.
-If one wants to also compile the C-extensions for use within C, this can be done with ``$ make lib`` (make sure that the paths to all required libraries can be found by the compiler).
+After that, this library can be easily installed with ``$ make`` in the root directory.
+If one wants to also built the C-extensions for use within C, this can be done with ``$ make lib`` (make sure that the paths to all required libraries can be found by the compiler).
 
 Usage
 -----

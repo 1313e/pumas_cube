@@ -197,8 +197,8 @@ int read_par_file(const char *filename, struct run_params *params){
 
 // This function destroys the created string array in a run_params struct
 void run_params_destroy(struct run_params *params){
-    // Free the array itself
     free(params->material_names);
+    free(params->model_filenames);
 }
 
 // Undefine global variables
