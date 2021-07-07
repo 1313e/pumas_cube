@@ -10,7 +10,7 @@ n_materials                 3
 material_0                  Air
 material_1                  Water
 material_2                  StandardRock
-outer_level_altitude        15.0
+outer_level_altitude        -15.0
 outer_lower_material        Water
 outer_lower_density         0.0
 outer_upper_material        Air

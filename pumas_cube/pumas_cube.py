@@ -130,8 +130,13 @@ def read_cube_HDF5(*args, output_dir, az_rng, elevation, logE_rng):
     """
 
     # Check if MPI worker and return if so
-    if is_worker:
+    if is_worker:           # pragma: no cover
         return
+
+    # Check if path exists
+    if not path.exists(output_dir):
+        # If not, raise error
+        raise OSError("Provided input argument 'output_dir' does not exist!")
 
     # Obtain the name of the HDF5 file associated with this elevation
     filename = HDF5_file.format(output_dir, elevation)
@@ -139,10 +144,10 @@ def read_cube_HDF5(*args, output_dir, az_rng, elevation, logE_rng):
     # Obtain absolute path to file
     filename = path.abspath(filename)
 
-    # Check if path exists
+    # Check if elevation exists
     if not path.exists(filename):
         # If not, raise error
-        raise OSError("Provided 'filename' does not exist!")
+        raise ValueError("Provided input argument 'elevation' is invalid!")
 
     # Check values of azimuth and logE_rng
     if isinstance(az_rng, int):
@@ -156,8 +161,8 @@ def read_cube_HDF5(*args, output_dir, az_rng, elevation, logE_rng):
 
     # Convert provided azimuth and logE to lists
     azimuth = list(azimuth)
-    logE = np.around(np.linspace(logE_rng[0], logE_rng[1],
-                                 int((logE_rng[1]-logE_rng[0])/logE_spc+1)), 1)
+    n_logE = np.rint((logE_rng[1]-logE_rng[0])/logE_spc+1).astype(int)
+    logE = np.around(np.linspace(logE_rng[0], logE_rng[1], n_logE), 1)
     logE = list(zip(logE[:-1], logE[1:]))
 
     # Create empty dict
@@ -257,6 +262,11 @@ def run_multi_cube(input_par, *, N=10000, az_rng=(0, 360), el_rng=(40, 90),
 
     """
 
+    # Check if given input_par exists
+    if not path.exists(input_par):
+        # If not, raise error
+        raise OSError("Provided input argument 'input_par' does not exist!")
+
     # Read parameter file to obtain the output_dir
     data = np.genfromtxt(input_par, dtype=str, comments="%")
     data_dct = dict(data)
@@ -264,8 +274,8 @@ def run_multi_cube(input_par, *, N=10000, az_rng=(0, 360), el_rng=(40, 90),
 
     # Determine Az+logE
     az = np.arange(*az_rng)
-    logE = np.around(np.linspace(logE_rng[0], logE_rng[1],
-                                 int((logE_rng[1]-logE_rng[0])/logE_spc+1)), 1)
+    n_logE = np.rint((logE_rng[1]-logE_rng[0])/logE_spc+1).astype(int)
+    logE = np.around(np.linspace(logE_rng[0], logE_rng[1], n_logE), 1)
     logE = list(zip(logE[:-1], logE[1:]))
     _, Az = np.meshgrid(np.zeros([len(logE)]), az)
     logE = list(chain(*repeat(logE, len(az))))
@@ -273,10 +283,7 @@ def run_multi_cube(input_par, *, N=10000, az_rng=(0, 360), el_rng=(40, 90),
     AzLogE = set(zip(az, logE))
 
     # Set required elevations
-    if isinstance(el_rng, int):
-        el_all = [el_rng]
-    else:
-        el_all = np.arange(*el_rng)
+    el_all = np.arange(*el_rng)
 
     # Spread all requested elevations to the number of ranks
     if is_controller:
@@ -284,14 +291,14 @@ def run_multi_cube(input_par, *, N=10000, az_rng=(0, 360), el_rng=(40, 90),
         idx = [el_all.shape[0]/size for _ in range(size-1)]
 
         # Determine the actual indices
-        idx2 = np.array(np.cumsum(idx), dtype=int)
+        idx2 = np.cumsum(idx).astype(int)
 
         # Split them up over N cores
         el_split = np.split(el_all, idx2)
 
         # Scatter to other ranks
         el = comm.scatter(el_split)
-    else:
+    else:               # pragma: no cover
         el = comm.scatter([])
 
     # Initialize structs
@@ -368,7 +375,7 @@ def make_hist(dset, *, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     """
 
     # Check if MPI worker and return if so
-    if is_worker:
+    if is_worker:           # pragma: no cover
         return
 
     # Set required elevations
@@ -393,13 +400,17 @@ def make_hist(dset, *, output_dir, az_rng, el_rng, logE_rng, savefig=None,
 
     # Obtain data for every elevation requested
     for elevation in el_all:
-        # Read in this elevation
-        dct = read_cube_HDF5(
-            dset,
-            output_dir=output_dir,
-            az_rng=az_rng,
-            elevation=elevation,
-            logE_rng=logE_rng)
+        # Try to read this elevation
+        try:
+            dct = read_cube_HDF5(
+                dset,
+                output_dir=output_dir,
+                az_rng=az_rng,
+                elevation=elevation,
+                logE_rng=logE_rng)
+        except ValueError:
+            # If this elevation does not exist, continue
+            continue
 
         # Obtain attrs if not obtained already
         if attrs is None:
@@ -493,7 +504,7 @@ def make_scatter(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     """
 
     # Check if MPI worker and return if so
-    if is_worker:
+    if is_worker:           # pragma: no cover
         return
 
     # Set required elevations
@@ -520,13 +531,17 @@ def make_scatter(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
 
     # Obtain data for every elevation requested
     for elevation in el_all:
-        # Read in this elevation
-        dct = read_cube_HDF5(
-            'position_xf', 'position_yf', 'position_zf',
-            output_dir=output_dir,
-            az_rng=az_rng,
-            elevation=elevation,
-            logE_rng=logE_rng)
+        # Try to read in this elevation
+        try:
+            dct = read_cube_HDF5(
+                'position_xf', 'position_yf', 'position_zf',
+                output_dir=output_dir,
+                az_rng=az_rng,
+                elevation=elevation,
+                logE_rng=logE_rng)
+        except ValueError:
+            # If this elevation does not exist, continue
+            continue
 
         # Obtain attrs if not obtained already
         if attrs is None:
@@ -625,7 +640,7 @@ def export_to_txt(filename, *, output_dir, az_rng, el_rng, logE_rng):
     """
 
     # Check if MPI worker and return if so
-    if is_worker:
+    if is_worker:       # pragma: no cover
         return
 
     # Obtain the absolute path to the provided filename
@@ -643,13 +658,17 @@ def export_to_txt(filename, *, output_dir, az_rng, el_rng, logE_rng):
 
     # Obtain data for every elevation requested
     for elevation in el_all:
-        # Read in this elevation
-        data_dct[elevation] = read_cube_HDF5(
-            *dsets_export,
-            output_dir=output_dir,
-            az_rng=az_rng,
-            elevation=elevation,
-            logE_rng=logE_rng)
+        # Try to read in this elevation
+        try:
+            data_dct[elevation] = read_cube_HDF5(
+                *dsets_export,
+                output_dir=output_dir,
+                az_rng=az_rng,
+                elevation=elevation,
+                logE_rng=logE_rng)
+        except ValueError:
+            # If this elevation does not exist, continue
+            continue
 
         # Obtain N if not obtained already
         if N is None:
