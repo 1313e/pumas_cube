@@ -34,6 +34,16 @@ struct run_params{
     int n_materials;
     // Assigned material names
     char **material_names;
+    // Altitude of split between outer layers
+    double outer_level_altitude;
+    // Material index of outer lower layer
+    int outer_lower_material;
+    // Density of outer lower layer
+    double outer_lower_density;
+    // Material index of outer upper layer
+    int outer_upper_material;
+    // Density of outer upper layer
+    double outer_upper_density;
 };
 
 // This function reads in the parameters from file
@@ -87,6 +97,33 @@ int read_par_file(const char *filename, struct run_params *params){
     strncpy(par_keys[n_par], "n_materials", MAX_PAR_LEN);
     par_ptrs[n_par] = &(params->n_materials);
     par_types[n_par++] = INT;
+
+    // OUTER_LEVEL_ALTITUDE
+    strncpy(par_keys[n_par], "outer_level_altitude", MAX_PAR_LEN);
+    par_ptrs[n_par] = &(params->outer_level_altitude);
+    par_types[n_par++] = DOUBLE;
+
+    // OUTER_LOWER_MATERIAL
+    char outer_lower_material_name[MAX_PAR_LEN];
+    strncpy(par_keys[n_par], "outer_lower_material", MAX_PAR_LEN);
+    par_ptrs[n_par] = &outer_lower_material_name;
+    par_types[n_par++] = STRING;
+
+    // OUTER_LOWER_DENSITY
+    strncpy(par_keys[n_par], "outer_lower_density", MAX_PAR_LEN);
+    par_ptrs[n_par] = &(params->outer_lower_density);
+    par_types[n_par++] = DOUBLE;
+
+    // OUTER_UPPER_MATERIAL
+    char outer_upper_material_name[MAX_PAR_LEN];
+    strncpy(par_keys[n_par], "outer_upper_material", MAX_PAR_LEN);
+    par_ptrs[n_par] = &outer_upper_material_name;
+    par_types[n_par++] = STRING;
+
+    // OUTER_UPPER_DENSITY
+    strncpy(par_keys[n_par], "outer_upper_density", MAX_PAR_LEN);
+    par_ptrs[n_par] = &(params->outer_upper_density);
+    par_types[n_par++] = DOUBLE;
 
     // Open parameter file
     FILE *file = fopen(filename, "r");
@@ -185,6 +222,16 @@ int read_par_file(const char *filename, struct run_params *params){
             for (i=0; i<params->n_materials; i++) {
                 params->material_names[i] = (char *)malloc(MAX_PAR_LEN);
             }
+        }
+    }
+
+    // Check which material indices were given for outer_lower_material/outer_upper_material
+    for (i=0; i<params->n_materials; i++) {
+        if (strncasecmp(outer_lower_material_name, params->material_names[i], MAX_PAR_LEN) == 0) {
+            params->outer_lower_material = i;
+        }
+        if (strncasecmp(outer_upper_material_name, params->material_names[i], MAX_PAR_LEN) == 0) {
+            params->outer_upper_material = i;
         }
     }
 

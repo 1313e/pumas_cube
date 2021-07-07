@@ -59,8 +59,11 @@ setup(name="pumas_cube",
               include_dirs=[
                   path.join(cube_dir, "include"),
                   path.join(pumas_dir, "include")],
-              language='c',
-              )]),
+              language='c'
+              )],
+          compiler_directives={
+              'embedsignature': True}
+          ),
       python_requires='>=3.6, <4',
       packages=find_packages(),
       package_dir={'pumas_cube': "pumas_cube"},

@@ -7,12 +7,12 @@ cube_model_0                SGM_local_model.txt             % First Rubik's Cube
 cube_model_1                SGM_regional_model.txt          % Rubik's Cube model to check for muon location if not contained within cube_model_0
 
 % Detector position
-det_position_x              658932
-det_position_y              5898244
-det_position_z              -717
+det_position_x              658932.0
+det_position_y              5898244.0
+det_position_z              -717.0
 
 % Materials
-MDF_filename                materials/materials.xml         % Path to the Materials Description Fileto use in PUMAS
+MDF_filename                materials/materials.xml         % Path to the Materials Description File to use in PUMAS
 DEDX_dir                    materials                       % Path to the directory that contains all energy loss tables
 n_materials                 5                               % NOTE: This value MUST appear before the specifications of the materials below
 material_0                  Air                             % Name of material (as defined in the MDF) with rock_id 0 in the Rubik's Cube model
@@ -20,4 +20,12 @@ material_1                  SgmWarrak                       % Name of material (
 material_2                  SgmBasalt                       % Etc.
 material_3                  SgmStope
 material_4                  SgmTunnel
+
+% Outer medium layers
+outer_level_altitude        0.0                             % Altitude (Z-coordinate) at which there is a boundary between the two outer layers
+outer_lower_material        SgmWarrak                       % Name of material that is in the lower outer layer
+outer_lower_density         2.67                            % Density of material that is in the lower outer layer. Use 0 for default density
+outer_upper_material        Air                             % Name of material that is in the upper outer layer
+outer_upper_density         0.0                             % Density of material that is in the upper outer layer. Use 0 for default density
+
 
