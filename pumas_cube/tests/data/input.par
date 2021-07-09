@@ -1,0 +1,18 @@
+output_dir                  output
+n_models                    1
+cube_model_0                test_model.txt
+det_position_x              35
+det_position_y              35
+det_position_z              -70
+MDF_filename                materials/materials.xml
+DEDX_dir                    materials
+n_materials                 3
+material_0                  Air
+material_1                  Water
+material_2                  StandardRock
+outer_level_altitude        -15.0
+outer_lower_material        Water
+outer_lower_density         0.0
+outer_upper_material        Air
+outer_upper_density         0.0
+
