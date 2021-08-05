@@ -14,6 +14,12 @@ Additionally, this library requires the HDF5 library as well.
 After that, this library can be easily installed with ``$ make`` in the root directory.
 If one wants to also built the C-extensions for use within C, this can be done with ``$ make lib`` (make sure that the paths to all required libraries can be found by the compiler).
 
+.. warning::
+
+    This package will not install properly on recent MacOS-X versions, like Catalina.
+    I am not entirely sure why, but for some reason, the shared file objects are not stored properly with their absolute paths on these systems, causing the package to not be able to find them.
+    On older MacOS-X versions and most common Linux distributions, this is not an issue.
+
 Usage
 -----
 Preparing the models
