@@ -14,6 +14,7 @@ lib/libgeometry_double_cube.so: src/geometry_multi_cube.c include/geometry_multi
 	@$(CC) -o $@ $(CFLAGS) -shared $(INCLUDES) $(LIBS) $<
 
 build-cython:
+	pip install -r requirements_install.txt
 	python setup.py build_ext --inplace -f
 
 clean: clean-c clean-build clean-pyc clean-cython
