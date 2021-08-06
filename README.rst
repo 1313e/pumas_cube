@@ -14,8 +14,9 @@ After that, this library can be easily installed with ``$ make`` in the root dir
 If one wants to also built the C-extensions for use within C, this can be done with ``$ make lib`` (make sure that the paths to all required libraries can be found by the compiler).
 
 WARNING:
-This package will not install properly on recent MacOS-X versions, like Catalina.
+This package will not install properly on recent MacOS-X versions, like Catalina, if one sets the library paths in the ``setup.cfg`` file.
 I am not entirely sure why, but for some reason, the shared file objects are not stored properly with their absolute paths on these systems, causing the package to not be able to find them.
+Instead, set the paths to the libraries to ``None`` (or remove them entirely from the file) and instead make sure they can be discovered through the environment variables mentioned above.
 On older MacOS-X versions and most common Linux distributions, this is not an issue.
 
 
