@@ -115,9 +115,10 @@ def read_cube_HDF5(*args, output_dir, az_rng, elevation, logE_rng):
 
     Optional
     --------
-    args : positional arguments
+    args : positional arguments or None
         The names of all datasets that must be read from the HDF5-file.
         If `args` is empty, all datasets are read.
+        If `args` is *None*, no datasets are read.
         See :obj:`~dset_unit_dct` for all dataset names.
 
     Returns
@@ -199,8 +200,10 @@ def read_cube_HDF5(*args, output_dir, az_rng, elevation, logE_rng):
                 except KeyError:
                     continue
 
-                # Check if args is not empty
-                if not args:
+                # Check if args is None or not empty
+                if(args == (None,)):
+                    args = []
+                elif not args:
                     # If it is, all datasets are required
                     args = list(subgroup.keys())
 

@@ -207,6 +207,18 @@ class Test_read_cube_HDF5(object):
         assert 'position_xf' in data[(5, 2.0, 2.1)]
         assert 'energy_f' not in data[(5, 2.0, 2.1)]
 
+    # Test if no datasets can be requested
+    def test_no_dsets(self, working_dir):
+        # Obtain data
+        data = read_cube_HDF5(None,
+                              output_dir=working_dir['output_dir'],
+                              az_rng=5,
+                              elevation=85,
+                              logE_rng=(2, 2.5))
+
+        # Check if certain expected data can be found in this dict
+        assert list(data[(5, 2.0, 2.1)].keys()) == ['attrs']
+
     # Test if giving an invalid directory raises an error
     def test_invalid_dir(self):
         with pytest.raises(OSError):
