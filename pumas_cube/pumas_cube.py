@@ -591,7 +591,7 @@ def make_hist(dset, *, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     ax.hist(data_flat, bins=nbins, log=True)
 
     # Title
-    fig.title(
+    plt.title(
         r"$N_{\mathrm{par}} = %s, Az = [%s, %s]\degree, El = [%s, %s]\degree, "
         r"E_{\mathrm{det}} \in [10^{%s}, 10^{%s}]\,\mathrm{GeV}$"
         % (e13.f2tex(N_total, sdigits=2),
@@ -738,7 +738,7 @@ def make_scatter(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
             fontsize=9)
 
     # Title
-    fig.title(
+    plt.title(
         r"$N_{\mathrm{par}} = %s, Az = [%s, %s]\degree, El = [%s, %s]\degree, "
         r"E_{\mathrm{det}} \in [10^{%s}, 10^{%s}]\,\mathrm{GeV}$"
         % (e13.f2tex(N_total, sdigits=2),
