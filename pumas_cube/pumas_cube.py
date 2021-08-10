@@ -840,7 +840,7 @@ def make_flux_plot(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
 
     # Determine the tick labels for the elevation angles
     el_axis = np.abs(el-90)
-    el_axis_spc = np.ceil(abs(el_axis[1]-el_axis[0])/5).astype(int)
+    el_axis_spc = np.ceil(abs(el_axis[-1]-el_axis[0])/5).astype(int)
     el_axis = el_axis[::el_axis_spc]
 
     # Create an angle meshgrid
