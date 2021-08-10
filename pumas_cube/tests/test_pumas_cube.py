@@ -10,7 +10,8 @@ import pytest
 
 # PUMAS Cube imports
 from pumas_cube import (
-    export_to_txt, make_hist, make_scatter, read_cube_HDF5, run_multi_cube)
+    calc_flux, export_to_txt, make_flux_plot, make_hist, make_scatter,
+    read_cube_HDF5, run_multi_cube)
 
 
 # %% GLOBALS
@@ -245,6 +246,54 @@ class Test_read_cube_HDF5(object):
                            logE_rng=(2, 2.3))
 
 
+# Pytest class for calc_flux()-function
+class Test_calc_flux(object):
+    # Test default
+    def test_default(self, working_dir):
+        # Calculate flux
+        _ = calc_flux(output_dir=working_dir['output_dir'],
+                      az_rng=None,
+                      el_rng=85,
+                      logE_rng=None)
+
+
+# Pytest class for make_flux_plot()-function
+class Test_make_flux_plot(object):
+    # Test default
+    def test_default(self, working_dir):
+        # Create plot
+        make_flux_plot(output_dir=working_dir['output_dir'],
+                       az_rng=None,
+                       el_rng=85,
+                       logE_rng=None)
+
+    # Test if specific azimuth, elevation and logE ranges can be used
+    def test_ranges(self, working_dir):
+        # Create plot
+        make_flux_plot(output_dir=working_dir['output_dir'],
+                       az_rng=(0, 20),
+                       el_rng=(85, 90),
+                       logE_rng=(2, 2.3))
+
+    # Test if specific azimuth value can be used
+    def test_az_value(self, working_dir):
+        # Create plot
+        make_flux_plot(output_dir=working_dir['output_dir'],
+                       az_rng=5,
+                       el_rng=85,
+                       logE_rng=(2, 2.5))
+
+    # Test if the figure can be saved
+    def test_savefig(self, working_dir):
+        # Create plot
+        filename = path.join(working_dir['output_dir'], 'test_flux.png')
+        make_flux_plot(output_dir=working_dir['output_dir'],
+                       az_rng=(0, 45),
+                       el_rng=(85, 90),
+                       logE_rng=None,
+                       savefig=filename)
+
+
 # Pytest class for make_hist()-function
 class Test_make_hist(object):
     # Test default
@@ -277,7 +326,7 @@ class Test_make_hist(object):
     # Test if the figure can be saved
     def test_savefig(self, working_dir):
         # Create plot
-        filename = path.join(working_dir['output_dir'], 'test.png')
+        filename = path.join(working_dir['output_dir'], 'test_hist.png')
         make_hist('energy_f',
                   output_dir=working_dir['output_dir'],
                   az_rng=None,
@@ -315,7 +364,7 @@ class Test_make_scatter(object):
     # Test if the figure can be saved
     def test_savefig(self, working_dir):
         # Create plot
-        filename = path.join(working_dir['output_dir'], 'test.png')
+        filename = path.join(working_dir['output_dir'], 'test_scatter.png')
         make_scatter(output_dir=working_dir['output_dir'],
                      az_rng=None,
                      el_rng=85,

@@ -25,8 +25,8 @@ from pumas_cube import __version__ as __version__
 import pumas_cube.cgeometry_multi_cube as ccube
 
 # All declaration
-__all__ = ['export_to_txt', 'make_hist', 'make_scatter', 'read_cube_HDF5',
-           'run_multi_cube']
+__all__ = ['calc_flux', 'export_to_txt', 'make_flux_plot', 'make_hist',
+           'make_scatter', 'read_cube_HDF5', 'run_multi_cube']
 
 
 # %% GLOBALS
@@ -61,8 +61,8 @@ attr_unit_dct = {
     'avg_flux_err': r'GeV^{-1}m^{-2}s^{-2}sr^{-1}',
     'energy_max': r'GeV',
     'energy_min': r'GeV',
-    'logE_max': r'GeV dex',
-    'logE_min': r'GeV dex',
+    'logE_max': r'GeV\,dex',
+    'logE_min': r'GeV\,dex',
     'random_seed': ''}
 
 dset_unit_dct = {
@@ -92,7 +92,146 @@ dset_unit_dct = {
     'weight_i': ''}
 
 
+# %% HELPER FUNCTIONS
+# This function calculates the fraction of the muon flux for a given charge
+def _charge_fraction(charge):
+    charge_ratio = 1.2766
+    if(charge < 0):
+        return(1/(1+charge_ratio))
+    elif(charge > 0):
+        return(charge_ratio/(1+charge_ratio))
+    else:           # pragma: no cover
+        return(1)
+
+
+# This function provides the Gaisser's flux model
+def _flux_gaisser(cos_theta, kinetic_energy, charge):
+    Emu = kinetic_energy+0.10566
+    ec = 1.1*Emu*cos_theta
+    rpi = 1+ec/115
+    rK = 1+ec/850
+    return(1.4e03*pow(Emu, -2.7)*(1/rpi+0.054/rK)*_charge_fraction(charge))
+
+
+# This function calculates Volkova's parametrization of the cosine of theta
+def _cos_theta_star(cos_theta):
+    p = [0.102573, -0.068287, 0.958633, 0.0407253, 0.817285]
+    cs2 = (cos_theta*cos_theta+p[0]*p[0]+p[1]*pow(cos_theta, p[2])+p[3]*pow(
+        cos_theta, p[4]))/(1+p[0]*p[0]+p[1]+p[3])
+    return(np.sqrt(cs2) if cs2 > 0 else 0)
+
+
+# This function provides the Guan et al. parametrization of the sea level flux
+def _flux_gccly(cos_theta, kinetic_energy, charge):
+    Emu = kinetic_energy+0.10566
+    cs = _cos_theta_star(cos_theta)
+    return(pow(1+3.64/(Emu*pow(cs, 1.29)), -2.7)*_flux_gaisser(
+        cs, kinetic_energy, charge))
+
+
 # %% FUNCTION DEFINITIONS
+# This function calculates the flux for a given portion of a simulation
+def calc_flux(output_dir, az_rng, el_rng, logE_rng):
+    """
+    Calculates the average flux with associated error for the given portion of
+    the simulation in `output_dir`.
+
+    Parameters
+    ----------
+    output_dir : str
+        The path towards the directory where the output HDF5-files are stored.
+    az_rng : int, 2-tuple of int or None
+        All azimuth angles that must be read in from the file.
+        If *None*, all azimuth angles available are read in.
+    el_rng : int, 2-tuple of int
+        The range of elevation angles that must be read in from the files.
+        Note that using a range of elevations can become disorganized very
+        quickly.
+    logE_rng : 2-tuple of float or None
+        The range of energies that must be read in from the file.
+        If *None*, all energies in the range `[-3, 4]` are read in.
+
+    Returns
+    -------
+    avg_flux, avg_flux_err : float
+        The calculated average flux and its associated error in units of
+        :math:`GeV^{-1}m^{-2}s^{-2}sr^{-1}`.
+
+    """
+
+    # Check if MPI worker and return if so
+    if is_worker:       # pragma: no cover
+        return
+
+    # Check values of az_rng, el_rng and logE_rng
+    if isinstance(az_rng, (int, np.integer)):
+        az_rng = (az_rng, az_rng+1)
+    else:
+        if az_rng is None:
+            az_rng = (0, 360)
+    if isinstance(el_rng, (int, np.integer)):
+        el_rng = (el_rng, el_rng+1)
+    if logE_rng is None:
+        logE_rng = (-3, 4)
+
+    # Initialize some variables
+    w = 0
+    w2 = 0
+    n_muons = 0
+    deg = np.pi/180
+
+    # Calculate the solid angle and reweight factor of this simulation
+    solid_angle = deg*np.fabs(np.sin(el_rng[1]*deg)-np.sin(el_rng[0]*deg)) *\
+        (az_rng[1]-az_rng[0])
+    ksel = 2*solid_angle*(logE_rng[1]-logE_rng[0])*np.log(10)
+
+    # Loop over all requested elevations
+    for el in range(*el_rng):
+        # Read in data
+        data = read_cube_HDF5('direction_zf', 'energy_f', 'charge',
+                              'weight_i', 'energy_i', 'weight_f', 'event',
+                              output_dir=output_dir,
+                              az_rng=az_rng,
+                              elevation=el,
+                              logE_rng=logE_rng)
+
+        # Remove attrs from the keys
+        keys = list(data.keys())
+        keys.remove('attrs')
+
+        # Loop over all individual simulations
+        for key in keys:
+            # Loop over all data sets in this simulation
+            data_i = data[key]
+            for zf, energy, charge, weight, e0, w0, e in zip(
+                    data_i['direction_zf'],
+                    data_i['energy_f'],
+                    data_i['charge'],
+                    data_i['weight_f'],
+                    data_i['energy_i'],
+                    data_i['weight_i'],
+                    data_i['event']):
+                # Calculate the flux
+                n_muons += 1
+                if not(e == 1):
+                    weight *= ksel*e0/w0  # Reweight to the selection window
+                    fi = _flux_gccly(-zf, energy, charge)
+                    wi = weight*fi
+                    w += wi
+                    w2 += wi*wi
+
+    # Reweight flux and error to become the average values
+    if w:
+        w /= n_muons
+        sigma = np.sqrt(((w2/n_muons)-w*w)/n_muons)/solid_angle
+        w /= solid_angle
+    else:
+        sigma = 0
+
+    # Return average flux and error
+    return(w, sigma)
+
+
 # Function that reads in an HDF5-file created with 'multi_geometry_cube.c'
 def read_cube_HDF5(*args, output_dir, az_rng, elevation, logE_rng):
     """
@@ -148,10 +287,11 @@ def read_cube_HDF5(*args, output_dir, az_rng, elevation, logE_rng):
     # Check if elevation exists
     if not path.exists(filename):
         # If not, raise error
-        raise ValueError("Provided input argument 'elevation' is invalid!")
+        raise ValueError("Provided input argument 'elevation' is invalid (%s)!"
+                         % (elevation))
 
     # Check values of azimuth and logE_rng
-    if isinstance(az_rng, int):
+    if isinstance(az_rng, (int, np.integer)):
         azimuth = [az_rng]
     else:
         if az_rng is None:
@@ -160,8 +300,7 @@ def read_cube_HDF5(*args, output_dir, az_rng, elevation, logE_rng):
     if logE_rng is None:
         logE_rng = (-3, 4)
 
-    # Convert provided azimuth and logE to lists
-    azimuth = list(azimuth)
+    # Convert provided logE to list
     n_logE = np.rint((logE_rng[1]-logE_rng[0])/logE_spc+1).astype(int)
     logE = np.around(np.linspace(logE_rng[0], logE_rng[1], n_logE), 1)
     logE = list(zip(logE[:-1], logE[1:]))
@@ -357,6 +496,7 @@ def make_hist(dset, *, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     az_rng : int, 2-tuple of int or None
         All azimuth angles that must be read in from the file.
         If *None*, all azimuth angles available are read in.
+        These values can be negative to count counter-clockwise.
     el_rng : int, 2-tuple of int
         The range of elevation angles that must be read in from the files.
         Note that using a range of elevations can become disorganized very
@@ -382,18 +522,18 @@ def make_hist(dset, *, output_dir, az_rng, el_rng, logE_rng, savefig=None,
         return
 
     # Set required elevations
-    if isinstance(el_rng, int):
-        el_all = [el_rng]
+    if isinstance(el_rng, (int, np.integer)):
+        elevation = [el_rng]
     else:
-        el_all = np.arange(*el_rng)
+        elevation = np.arange(*el_rng)
 
     # Check values of azimuth and logE_rng
-    if isinstance(az_rng, int):
-        azimuth = [az_rng]
+    if isinstance(az_rng, (int, np.integer)):
+        azimuth = [az_rng % 360]
     else:
         if az_rng is None:
             az_rng = (0, 360)
-        azimuth = np.arange(*az_rng)
+        azimuth = np.arange(*az_rng) % 360
     if logE_rng is None:
         logE_rng = (-3, 4)
 
@@ -402,14 +542,14 @@ def make_hist(dset, *, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     data_dct = {}
 
     # Obtain data for every elevation requested
-    for elevation in el_all:
+    for el in elevation:
         # Try to read this elevation
         try:
             dct = read_cube_HDF5(
                 dset,
                 output_dir=output_dir,
                 az_rng=az_rng,
-                elevation=elevation,
+                elevation=el,
                 logE_rng=logE_rng)
         except ValueError:
             # If this elevation does not exist, continue
@@ -423,12 +563,12 @@ def make_hist(dset, *, output_dir, az_rng, el_rng, logE_rng, savefig=None,
         dct.pop('attrs')
 
         # Add to data_dct
-        data_dct[elevation] = dct
+        data_dct[el] = dct
 
     # Determine lengths
     N = int(attrs['n_particles'])
     N_el = len(data_dct)
-    N_azE = len(data_dct[elevation])
+    N_azE = len(data_dct[el])
     N_total = N*N_el*N_azE
 
     # Create empty array to store flattened data in
@@ -453,10 +593,10 @@ def make_hist(dset, *, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     # Title
     fig.suptitle(
         r"$N_{\mathrm{par}} = %s, Az = [%s, %s]\degree, El = [%s, %s]\degree, "
-        r"E_{\mathrm{det}} = [10^{%s}, 10^{%s}]\,\mathrm{GeV}$"
+        r"E_{\mathrm{det}} \in [10^{%s}, 10^{%s}]\,\mathrm{GeV}$"
         % (e13.f2tex(N_total, sdigits=2),
            int(azimuth[0]), int(azimuth[-1]+1),
-           int(el_all[0]), int(el_all[-1]+1),
+           int(elevation[0]), int(elevation[-1]+1),
            logE_rng[0], logE_rng[1],
            ))
 
@@ -476,7 +616,7 @@ def make_hist(dset, *, output_dir, az_rng, el_rng, logE_rng, savefig=None,
 
 # This function creates a figure showing the end positions of all muons
 def make_scatter(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
-                 figsize=(6.4, 4.8)):
+                 figsize=(6.4, 4.8), cmap='cmr.ember'):
     """
     Creates a scatter plot showing the final positions of all muons simulated
     with the given arguments.
@@ -488,6 +628,7 @@ def make_scatter(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     az_rng : int, 2-tuple of int or None
         All azimuth angles that must be read in from the file.
         If *None*, all azimuth angles available are read in.
+        These values can be negative to count counter-clockwise.
     el_rng : int, 2-tuple of int
         The range of elevation angles that must be read in from the files.
         Note that using a range of elevations can become disorganized very
@@ -503,6 +644,9 @@ def make_scatter(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
         Else, the plot will simply be shown.
     figsize : tuple of float. Default: (6.4, 4.8)
         The size of the figure in inches.
+    cmap : str or :obj:`~matplotlib.colors.Colormap` object
+        The registered name of the colormap in :mod:`matplotlib.cm` or its
+        corresponding :obj:`~matplotlib.colors.Colormap` object.
 
     """
 
@@ -510,19 +654,22 @@ def make_scatter(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     if is_worker:           # pragma: no cover
         return
 
+    # Obtain colormap
+    cmap = plt.get_cmap(cmap)
+
     # Set required elevations
-    if isinstance(el_rng, int):
-        el_all = [el_rng]
+    if isinstance(el_rng, (int, np.integer)):
+        elevation = [el_rng]
     else:
-        el_all = np.arange(*el_rng)
+        elevation = np.arange(*el_rng)
 
     # Check values of azimuth and logE_rng
-    if isinstance(az_rng, int):
-        azimuth = [az_rng]
+    if isinstance(az_rng, (int, np.integer)):
+        azimuth = [az_rng % 360]
     else:
         if az_rng is None:
             az_rng = (0, 360)
-        azimuth = np.arange(*az_rng)
+        azimuth = np.arange(*az_rng) % 360
     if logE_rng is None:
         logE_rng = (-3, 4)
 
@@ -533,14 +680,14 @@ def make_scatter(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     data_dct = {}
 
     # Obtain data for every elevation requested
-    for elevation in el_all:
+    for el in elevation:
         # Try to read in this elevation
         try:
             dct = read_cube_HDF5(
                 'position_xf', 'position_yf', 'position_zf',
                 output_dir=output_dir,
                 az_rng=az_rng,
-                elevation=elevation,
+                elevation=el,
                 logE_rng=logE_rng)
         except ValueError:
             # If this elevation does not exist, continue
@@ -558,12 +705,12 @@ def make_scatter(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
         vmax = max(vmax, *[min(dct[key]['position_zf']) for key in dct.keys()])
 
         # Add to data_dct
-        data_dct[elevation] = dct
+        data_dct[el] = dct
 
     # Determine lengths
     N = attrs['n_particles']
     N_el = len(data_dct)
-    N_azE = len(data_dct[elevation])
+    N_azE = len(data_dct[el])
     N_total = int(N*N_el*N_azE)
 
     # Create 3D scatter plot of exit locations of all muons
@@ -581,7 +728,7 @@ def make_scatter(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
             data_i = data[key]
             ax.scatter(data_i['position_xf'], data_i['position_yf'],
                        data_i['position_zf'], vmin=vmin, vmax=vmax,
-                       s=0.01, cmap=cmr.ember, c=data_i['position_zf'])
+                       s=0.01, cmap=cmap, c=data_i['position_zf'])
 
     # Detector position
     ax.scatter(*[[x] for x in attrs['det_position']], marker='x', s=100,
@@ -592,10 +739,10 @@ def make_scatter(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     # Title
     fig.suptitle(
         r"$N_{\mathrm{par}} = %s, Az = [%s, %s]\degree, El = [%s, %s]\degree, "
-        r"E_{\mathrm{det}} = [10^{%s}, 10^{%s}]\,\mathrm{GeV}$"
+        r"E_{\mathrm{det}} \in [10^{%s}, 10^{%s}]\,\mathrm{GeV}$"
         % (e13.f2tex(N_total, sdigits=2),
            int(azimuth[0]), int(azimuth[-1]+1),
-           int(el_all[0]), int(el_all[-1]+1),
+           int(elevation[0]), int(elevation[-1]+1),
            logE_rng[0], logE_rng[1],
            ))
 
@@ -606,6 +753,117 @@ def make_scatter(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
 
     # Legend
     ax.legend(loc='best')
+
+    # If savefig is not None, save the figure
+    if savefig is not None:
+        plt.savefig(savefig, dpi=100)
+        plt.close(fig)
+
+    # Else, simply show it
+    else:
+        plt.show()
+
+
+# This function creates a figure showing the average flux from above the sim
+def make_flux_plot(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
+                   figsize=(6.4, 4.8), cmap='cmr.ocean'):
+    """
+    Creates a plot showing a topdown of the simulation in `output_dir` with the
+    average flux of every square degree for the chosen angle and energy ranges.
+
+    Parameters
+    ----------
+    output_dir : str
+        The path towards the directory where the output HDF5-files are stored.
+    az_rng : int, 2-tuple of int or None
+        All azimuth angles that must be read in from the file.
+        If *None*, all azimuth angles available are read in.
+        These values can be negative to count counter-clockwise.
+    el_rng : int, 2-tuple of int
+        The range of elevation angles that must be read in from the files.
+        Note that using a range of elevations can become disorganized very
+        quickly.
+    logE_rng : 2-tuple of float or None
+        The range of energies that must be read in from the file.
+        If *None*, all energies in the range `[-3, 4]` are read in.
+
+    Optional
+    --------
+    savefig : str or None. Default: None
+        If not *None*, the filepath where the scatter plot must be saved to.
+        Else, the plot will simply be shown.
+    figsize : tuple of float. Default: (6.4, 4.8)
+        The size of the figure in inches.
+    cmap : str or :obj:`~matplotlib.colors.Colormap` object
+        The registered name of the colormap in :mod:`matplotlib.cm` or its
+        corresponding :obj:`~matplotlib.colors.Colormap` object.
+
+    """
+
+    # Check if MPI worker and return if so
+    if is_worker:       # pragma: no cover
+        return
+
+    # Obtain colormap
+    cmap = plt.get_cmap(cmap)
+
+    # Check values of az_rng, el_rng and logE_rng
+    if isinstance(az_rng, (int, np.integer)):
+        az_rng = np.array((az_rng, az_rng+1))
+        azimuth = az_rng % 360
+    else:
+        if az_rng is None:
+            az_rng = (0, 360)
+        azimuth = np.arange(*az_rng) % 360
+    if isinstance(el_rng, (int, np.integer)):
+        el_rng = (el_rng, el_rng+1)
+        elevation = el_rng
+    else:
+        elevation = np.arange(*el_rng)
+    if logE_rng is None:
+        logE_rng = (-3, 4)
+
+    # Create empty array for flux data
+    flux_data = np.empty([len(azimuth), len(elevation)])
+
+    # Loop over all azimuth and elevation angles, and calculate the flux
+    for i, az in enumerate(azimuth):
+        for j, el in enumerate(elevation):
+            flux_data[i, j] = calc_flux(
+                output_dir, az, el, logE_rng)[0]
+
+    # Convert angles to format to use in a polar plot
+    az = np.arange(az_rng[0], az_rng[-1]+1)*(2*np.pi/360)
+    el = np.arange(el_rng[0], el_rng[-1]+1)
+
+    # Determine the tick labels for the elevation angles
+    el_axis = np.abs(el-90)
+    el_axis_spc = np.ceil(abs(el_axis[1]-el_axis[0])/5).astype(int)
+    el_axis = el_axis[::el_axis_spc]
+
+    # Create an angle meshgrid
+    Az, El = np.meshgrid(az, el_axis)
+
+    # Create new figure
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(projection='polar')
+
+    # Set properties of this polar plot to mimic azimuth and elevation
+    ax.set_theta_direction(-1)
+    ax.set_theta_zero_location('N')
+    ax.set_thetamin(az_rng[0])
+    ax.set_thetamax(az_rng[-1])
+    ax.set_rgrids(el_axis, [r"$%s\degree$" % (abs(90-x)) for x in el_axis])
+
+    # Create colormesh of flux values
+    pc = ax.pcolormesh(Az, El, flux_data.T, cmap=cmap, shading='flat')
+    cbar = fig.colorbar(pc)
+    cbar.set_label(r"Avg. flux [$\mathrm{GeV^{-1} m^{-2} s^{-2} sr^{-1}}$]")
+
+    # Set figure title
+    plt.suptitle(
+        r"Average flux for $E_{\mathrm{det}} \in [10^{%s}, 10^{%s}]\,"
+        r"\mathrm{GeV}$" % (logE_rng[0], logE_rng[1]))
 
     # If savefig is not None, save the figure
     if savefig is not None:
@@ -650,24 +908,24 @@ def export_to_txt(filename, *, output_dir, az_rng, el_rng, logE_rng):
     filename = path.abspath(filename)
 
     # Set required elevations
-    if isinstance(el_rng, int):
-        el_all = [el_rng]
+    if isinstance(el_rng, (int, np.integer)):
+        elevation = [el_rng]
     else:
-        el_all = np.arange(*el_rng)
+        elevation = np.arange(*el_rng)
 
     # Create data_dct
     N = None
     data_dct = {}
 
     # Obtain data for every elevation requested
-    for elevation in el_all:
+    for el in elevation:
         # Try to read in this elevation
         try:
-            data_dct[elevation] = read_cube_HDF5(
+            data_dct[el] = read_cube_HDF5(
                 *dsets_export,
                 output_dir=output_dir,
                 az_rng=az_rng,
-                elevation=elevation,
+                elevation=el,
                 logE_rng=logE_rng)
         except ValueError:
             # If this elevation does not exist, continue
@@ -675,14 +933,14 @@ def export_to_txt(filename, *, output_dir, az_rng, el_rng, logE_rng):
 
         # Obtain N if not obtained already
         if N is None:
-            N = int(data_dct[elevation]['attrs']['n_particles'])
+            N = int(data_dct[el]['attrs']['n_particles'])
 
         # Remove all attributes from this dict
-        data_dct[elevation].pop('attrs')
+        data_dct[el].pop('attrs')
 
     # Determine lengths
     N_el = len(data_dct)
-    N_azE = len(data_dct[elevation])
+    N_azE = len(data_dct[el])
     N_total = N*N_el*N_azE
 
     # Create empty array to store flattened data in

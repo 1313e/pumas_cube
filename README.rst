@@ -54,17 +54,17 @@ For example:
                                logE_rng=(-1.0, 1.5))
 
 Here, we ran the multi Rubik's cube model with PUMAS using the ``input.par`` parameters file, and a series of input parameters.
-Every simulation uses a resolution of one square degree and a logarithmic energy bin-size of :math:`0.1` (although I am planning on allowing for this particular value to be changeable by the user).
+Every simulation run uses a resolution of one square degree and a logarithmic energy bin-size of :math:`0.1` (although I am planning on allowing for this particular value to be changeable by the user).
 That means that in this particular case, we are asking for :math:`5*10*25=1,250` different simulations (:math:`5` azimuth angles; :math:`10` elevation angles; :math:`25` logarithmic energy bins).
-Therefore, given that we also asked for :math:`100` muons PER simulation, a total of :math:`125,000` muons will be simulated with this function call.
+Therefore, given that we also asked for :math:`100` muons PER simulation run, a total of :math:`125,000` muons will be simulated with this function call in the entire simulation suite.
 
 The arrival direction and energy of each individually simulated muon is randomized within the boundaries it was given.
-So, for example, if a particular run has ``az=230; el=10; logE_rng=(-1.0, -0.9)``, then the arrival direction and energy of every muon in that simulation will be randomized in the ranges ``az_rng=(230, 231); el_rng=(10, 11); logE_rng=(-1.0, -0.9)``.
+So, for example, if a particular run has ``az=230; el=10; logE_rng=(-1.0, -0.9)``, then the arrival direction and energy of every muon in that simulation run will be randomized in the ranges ``az_rng=(230, 231); el_rng=(10, 11); logE_rng=(-1.0, -0.9)``.
 The actual values that were used are stored in the output HDF5-files for every simulated muon.
 
 Analyzing the results
 +++++++++++++++++++++
-After a simulation run has finished, we can read the results back into memory with the ``read_cube_HDF5`` function.
+After a simulation suite has finished, we can read the results back into memory with the ``read_cube_HDF5`` function.
 This function takes the path to a directory that contains the output HDF5-files of a simulation run, and several arguments that specify what specific part of the data one wants to read in.
 For example, if we assume we executed the script above; stored the data in a folder called ``test``; and we are interested in the end positions of all muons for a detected elevation of :math:`[15, 16)`, we can do this with:
 
@@ -78,20 +78,64 @@ For example, if we assume we executed the script above; stored the data in a fol
                                       logE_rng=None)
 
 Here, we specified that we want to read all azimuth angles and logarithmic energy bins that are present in the output HDF5-files in the directory ``test`` for an elevation of :math:`[15, 16)`.
-What we want from these simulations is the end position of every muon, which is given by ``'position_xf', 'position_yf', 'position_zf'``.
+What we want from these simulation runs is the end position of every muon, which is given by ``'position_xf', 'position_yf', 'position_zf'``.
 Providing no arguments to what data should be returned will return all data from every valid simulation instead.
 If required, one can check the ``pumas_cube.dset_unit_dct`` dict for the names of all dataset values that this function can take.
+Keep in mind that this function can only take a single integer as the ``elevation`` value.
+If multiple elevations are required, one has to call this function multiple times (which the other functions described below do automatically).
 
-The ``data`` variable we end up with is a Python dict, that contains an entry called ``'attrs'`` (a dict with all attributes of the HDF5-file, like what models were used or what the detector position was) and a series of keys that each describe the azimuth angle and logarithmic energy bin range for a specific simulation.
+The ``data`` variable we end up with is a Python dict, that contains an entry called ``'attrs'`` (a dict with all attributes of the HDF5-file, like what models were used or what the detector position was) and a series of keys that each describe the azimuth angle and logarithmic energy bin range for a specific simulation run.
 That sounds very complicated, so let me give an example.
 One of the entries in ``data`` that we obtained above, will be ``(230, -1.0, -0.9)``.
-This means that this entry describes the simulation that was done with the parameters ``az=230; el=15; logE_rng=(-1.0, -0.9)``.
+This means that this entry describes the simulation run that was done with the parameters ``az=230; el=15; logE_rng=(-1.0, -0.9)``.
 We know that the elevation was :math:`15` because that is what we asked for when calling the ``read_cube_HDF5`` function, whereas the other parameters are in the key.
-The dict that belongs to this specific simulation then in turn contains all the datasets that was asked for, in this case ``'position_xf', 'position_yf', 'position_zf'``.
+The dict that belongs to this specific simulation run then in turn contains all the datasets that was asked for, in this case ``'position_xf', 'position_yf', 'position_zf'``.
+
+Calculating the average flux
+++++++++++++++++++++++++++++
+By default, for every individual simulation run in a full suite, the average flux and associated error are calculated and stored in the output HDF5-files (they can be found under the ``'attrs'`` dataset when using the ``read_cube_HDF5`` function described above for every individual simulation run).
+However, sometimes it is desirable to obtain the average flux over a specific region of the simulation suite.
+For example, one might want to know the average flux in the region ``az_rng=(230, 255); el_rng=(10, 45); logE_rng=(-1.0, 4.0)``.
+In this particular case, we can use the ``calc_flux`` function to calculate the average flux over this region:
+
+.. code:: python
+
+    # Calculate flux
+    avg_flux, avg_flux_err = pumas_cube.calc_flux(output_dir='test',
+                                                  az_rng=(230, 255),
+                                                  el_rng=(10, 45),
+                                                  logE_rng=(-1, 4))
+
+This will provide us with the average flux value (in units of :math:`GeV^{-1}m^{-2}s^{-2}sr^{-1}`) and its corresponding error over the region of the simulation suite we specified.
 
 Plotting the results
 ++++++++++++++++++++
-While we can use the ``read_cube_HDF5`` function described above to analyze the results in any way we want and write our own plotting scripts, *PUMAS Cube* provides two generic plotting functions already: ``make_hist`` and ``make_scatter``.
+While we can use the ``read_cube_HDF5`` function described above to analyze the results in any way we want and write our own plotting scripts, *PUMAS Cube* provides three generic plotting functions already: ``make_flux_plot``; ``make_hist`` and ``make_scatter``.
+
+First of all, the ``make_flux_plot`` function can be used to create a topdown plot of the average flux of a specific region of a simulation suite, separated into square degree bins.
+Basically, it calculates the average flux for every square degree bin within a specified angle and energy range, and shows that in a plot.
+This might sound a bit complicated, so below is an example:
+
+.. code:: python
+
+    # Create flux plot in specific angle region
+    pumas_cube.make_flux_plot(output_dir='test',
+                              az_rng=(0, 45),
+                              el_rng=(85, 90),
+                              logE_rng=None,
+                              savefig='flux.png')
+
+Here, we requested a flux plot in the region ``az_rng=(0, 45); el_rng=(85, 90); logE_rng=(-3.0, 4.0)`` of a simulation suite.
+Note that ``None`` for ``logE_rng`` means ``(-3.0, 4.0)``.
+An example of how this plot might look like can be found below:
+
+.. image:: https://github.com/1313e/pumas_cube/raw/master/examples/flux.png
+    :width: 100%
+    :align: center
+    :alt: Example flux plot
+
+As we can see in this plot, the function automatically takes care of only including the part of the region we actually requested, and removes everything else.
+
 The ``make_hist`` function can be used to create a simple histogram of a SINGLE dataset that is stored for the simulations that satisfy the specific simulation parameters.
 As stated above, one can check the ``pumas_cube.dset_unit_dct`` dict for the names of all dataset values that this function can take.
 For example, let's say that we want to make a histogram of the final energies of all muons in the simulation:
@@ -109,7 +153,7 @@ For example, let's say that we want to make a histogram of the final energies of
 As shown above, the requesting data to be used in this function is almost identical to the ``read_cube_HDF5`` function, except that now a range of elevations can be given.
 Be warned however that providing a large range of elevations can give a figure that might be very hard to interpret, as different elevations often result in different average distances from the detector to the edge of the union of the models.
 
-The other function, ``make_scatter``, creates a 3D scatter plot of the end positions of all simulations that satisfy the specific simulation parameters.
+The final function, ``make_scatter``, creates a 3D scatter plot of the end positions of all simulations that satisfy the specific simulation parameters.
 Its use is very similar to the ``make_hist`` function:
 
 .. code:: python
