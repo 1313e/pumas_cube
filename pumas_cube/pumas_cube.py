@@ -591,7 +591,7 @@ def make_hist(dset, *, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     ax.hist(data_flat, bins=nbins, log=True)
 
     # Title
-    fig.suptitle(
+    fig.title(
         r"$N_{\mathrm{par}} = %s, Az = [%s, %s]\degree, El = [%s, %s]\degree, "
         r"E_{\mathrm{det}} \in [10^{%s}, 10^{%s}]\,\mathrm{GeV}$"
         % (e13.f2tex(N_total, sdigits=2),
@@ -603,6 +603,7 @@ def make_hist(dset, *, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     # Labels
     ax.set_xlabel(r"%s [$\mathrm{%s}$]" % (dset, dset_unit_dct[dset]))
     ax.set_ylabel("Count")
+    plt.tight_layout()
 
     # If savefig is not None, save the figure
     if savefig is not None:
@@ -737,7 +738,7 @@ def make_scatter(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
             fontsize=9)
 
     # Title
-    fig.suptitle(
+    fig.title(
         r"$N_{\mathrm{par}} = %s, Az = [%s, %s]\degree, El = [%s, %s]\degree, "
         r"E_{\mathrm{det}} \in [10^{%s}, 10^{%s}]\,\mathrm{GeV}$"
         % (e13.f2tex(N_total, sdigits=2),
@@ -753,6 +754,7 @@ def make_scatter(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
 
     # Legend
     ax.legend(loc='best')
+    plt.tight_layout()
 
     # If savefig is not None, save the figure
     if savefig is not None:
@@ -861,9 +863,10 @@ def make_flux_plot(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     cbar.set_label(r"Avg. flux [$\mathrm{GeV^{-1} m^{-2} s^{-2} sr^{-1}}$]")
 
     # Set figure title
-    plt.suptitle(
+    plt.title(
         r"Average flux for $E_{\mathrm{det}} \in [10^{%s}, 10^{%s}]\,"
         r"\mathrm{GeV}$" % (logE_rng[0], logE_rng[1]))
+    plt.tight_layout()
 
     # If savefig is not None, save the figure
     if savefig is not None:
