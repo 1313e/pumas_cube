@@ -841,7 +841,7 @@ def make_flux_plot(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     # Determine the tick labels for the elevation angles
     el_axis = np.abs(el-90)
     el_axis_spc = np.ceil(abs(el_axis[-1]-el_axis[0])/5).astype(int)
-    el_axis = el_axis[::el_axis_spc]
+    el_label = el_axis[::el_axis_spc]
 
     # Create an angle meshgrid
     Az, El = np.meshgrid(az, el_axis)
@@ -855,7 +855,7 @@ def make_flux_plot(*, output_dir, az_rng, el_rng, logE_rng, savefig=None,
     ax.set_theta_zero_location('N')
     ax.set_thetamin(az_rng[0])
     ax.set_thetamax(az_rng[-1])
-    ax.set_rgrids(el_axis, [r"$%s\degree$" % (abs(90-x)) for x in el_axis])
+    ax.set_rgrids(el_label, [r"$%s\degree$" % (abs(90-x)) for x in el_label])
 
     # Create colormesh of flux values
     pc = ax.pcolormesh(Az, El, flux_data.T, cmap=cmap, shading='flat')
