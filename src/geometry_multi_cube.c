@@ -40,12 +40,6 @@ You may redistribute and/or modify it without any restrictions, as long as the c
 #define M_PI 3.14159265358979323846
 #endif
 
-/* Reference ground altitude out of the Rubik's cube models */
-#define OUTER_GROUND_LEVEL 0
-
-/* Reference density for the outer ground */
-#define OUTER_GROUND_DENSITY 2.67
-
 // Macros
 #define min(A, B) (A < B ? A : B)
 #define max(A, B) (A > B ? A : B)
@@ -391,7 +385,7 @@ enum rubiks_cube_return get_cube(struct pumas_state *state, int *rock_id_ptr,
             *rock_id_ptr = params.outer_lower_material;
         if (density_ptr != NULL)
             *density_ptr = params.outer_lower_density;
-        ztop = OUTER_GROUND_LEVEL;
+        ztop =params.outer_level_altitude;
     }
     else if (z < PRIMARY_ALTITUDE) {
         // Above ground level, below maximum altitude
