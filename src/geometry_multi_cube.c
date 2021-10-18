@@ -863,13 +863,13 @@ void run_multi_cube(int n_times, double azimuth, double elevation, double logE_m
                 /* Below 100 GeV do a detailed simulation
                     * à la Geant4, including transverse transport
                     */
-                context->mode.energy_loss = PUMAS_MODE_DETAILED;
-                context->mode.scattering = PUMAS_MODE_FULL_SPACE;
+                context->mode.energy_loss = PUMAS_MODE_STRAGGLED;
+                context->mode.scattering = PUMAS_MODE_MIXED;
                 context->limit.energy = 1E+02;
             } else {
                 /* Do a fast simulation à la MUM */
-                context->mode.energy_loss = PUMAS_MODE_HYBRID;
-                context->mode.scattering = PUMAS_MODE_LONGITUDINAL;
+                context->mode.energy_loss = PUMAS_MODE_MIXED;
+                context->mode.scattering = PUMAS_MODE_DISABLED;
                 context->limit.energy = energy_threshold;
             }
             pumas_context_transport(context, &state, &event, medium);

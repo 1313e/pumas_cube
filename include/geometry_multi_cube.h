@@ -7,5 +7,5 @@ void run_multi_cube(
     int n_times, double azimuth, double elevation, double logE_min,
     double logE_max, int verbose);
 
-void destroy_structs();
+void destroy_structs(void);
 #endif
