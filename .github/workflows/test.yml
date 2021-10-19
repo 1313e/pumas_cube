@@ -36,7 +36,7 @@ jobs:
     - name: Build PUMAS library
       run: |
         cd ..
-        git clone https://github.com/niess/pumas -b dev
+        git clone https://github.com/niess/pumas -b v1.1
         cd pumas
         make
     - name: Build HDF5 library
